@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box, Card, CardContent, Typography, Avatar,
   Button, TextField, Divider, CircularProgress,
@@ -15,6 +16,7 @@ import { toast } from 'react-toastify';
 import api from '../../api/axios';
 
 export default function Profile() {
+  const { t } = useTranslation();
   // const { logout }          = useAuth();
   // const navigate                  = useNavigate();
   const [loading, setLoading]     = useState(true);
@@ -40,7 +42,7 @@ export default function Profile() {
           phone: data.phone ?? '',
         });
       } catch {
-        toast.error('Failed to load profile');
+        toast.error(t('toasts.profileLoadFailed'));
       } finally {
         setLoading(false);
       }
@@ -54,9 +56,9 @@ export default function Profile() {
       // await api.put('/auth/profile', form);
       setProfileData({ ...profileData, ...form });
       setEditMode(false);
-      toast.success('Profile updated!');
+      toast.success(t('toasts.profileUpdated'));
     } catch {
-      toast.error('Failed to update profile');
+      toast.error(t('toasts.profileUpdateFailed'));
     } finally {
       setSaving(false);
     }
@@ -87,7 +89,7 @@ export default function Profile() {
   return (
     <Box>
       <Typography variant="h5" fontWeight="bold" mb={3}>
-        My Profile
+        {t('profile.title')}
       </Typography>
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
@@ -110,7 +112,7 @@ export default function Profile() {
               </Typography>
 
               <Chip
-                label={profileData?.role === 'doctor' ? 'Veterinarian' : 'Breeder'}
+                label={profileData?.role === 'doctor' ? t('profile.vet') : t('profile.breeder')}
                 color={profileData?.role === 'doctor' ? 'success' : 'primary'}
                 size="small"
                 sx={{ mt: 1, mb: 2 }}
@@ -131,13 +133,13 @@ export default function Profile() {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Phone sx={{ fontSize: 18, color: 'text.secondary' }} />
                   <Typography variant="body2" color="text.secondary">
-                    {profileData?.phone ?? 'N/A'}
+                    {profileData?.phone ?? t('profile.na')}
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <LocationOn sx={{ fontSize: 18, color: 'text.secondary' }} />
                   <Typography variant="body2" color="text.secondary">
-                    {profileData?.region?.name ?? 'N/A'}
+                    {profileData?.region?.name ?? t('profile.na')}
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -158,7 +160,7 @@ export default function Profile() {
             <CardContent sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                 <Typography variant="h6" fontWeight="bold">
-                  Personal Information
+                  {t('profile.personalInfo')}
                 </Typography>
                 {!editMode ? (
                   <Button
@@ -167,7 +169,7 @@ export default function Profile() {
                     onClick={() => setEditMode(true)}
                     sx={{ borderRadius: 2 }}
                   >
-                    Edit
+                    {t('profile.edit')}
                   </Button>
                 ) : (
                   <Box sx={{ display: 'flex', gap: 1 }}>
@@ -176,7 +178,7 @@ export default function Profile() {
                       onClick={() => setEditMode(false)}
                       sx={{ borderRadius: 2 }}
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </Button>
                     <Button
                       startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <Save />}
@@ -185,7 +187,7 @@ export default function Profile() {
                       disabled={saving}
                       sx={{ borderRadius: 2 }}
                     >
-                      Save
+                      {t('common.save')}
                     </Button>
                   </Box>
                 )}
@@ -193,19 +195,19 @@ export default function Profile() {
 
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
-                  fullWidth label="Full Name" value={form.name}
+                  fullWidth label={t('profile.fullName')} value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   disabled={!editMode}
                   InputProps={{ startAdornment: <Person sx={{ mr: 1, color: 'text.secondary' }} /> }}
                 />
                 <TextField
-                  fullWidth label="Email" value={form.email}
+                  fullWidth label={t('auth.email')} value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   disabled={!editMode}
                   InputProps={{ startAdornment: <Email sx={{ mr: 1, color: 'text.secondary' }} /> }}
                 />
                 <TextField
-                  fullWidth label="Phone" value={form.phone}
+                  fullWidth label={t('profile.phone')} value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   disabled={!editMode}
                   InputProps={{ startAdornment: <Phone sx={{ mr: 1, color: 'text.secondary' }} /> }}

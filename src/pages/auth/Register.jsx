@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box, Card, CardContent, TextField, Button, Typography,
   InputAdornment, IconButton, CircularProgress,
@@ -11,6 +12,7 @@ import { toast } from 'react-toastify';
 import api from '../../api/axios';
 
 export default function Register() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
 
   const [step, setStep]     = useState(1);
@@ -21,7 +23,6 @@ export default function Register() {
     password:              '', 
     password_confirmation: '',
     region_id:             '',
-    role:                  '',
   });
   const [otp, setOtp]                     = useState('');
   const [showPassword, setShowPassword]   = useState(false);
@@ -61,8 +62,7 @@ export default function Register() {
         setSelectedCity('');
         setForm(f => ({ ...f, region_id: '' }));
       } catch {
-        <>
-        </>
+        /* ignore */
       }
     };
     fetchGovernorates();
@@ -78,8 +78,7 @@ export default function Register() {
         setSelectedCity('');
         setForm(f => ({ ...f, region_id: '' }));
       } catch {
-        <>
-        </>
+        /* ignore */
       }
     };
     fetchCities();
@@ -93,8 +92,7 @@ export default function Register() {
         setRegions(res.data.data ?? res.data);
         setForm(f => ({ ...f, region_id: '' }));
       } catch {
-        <>
-        </>
+        /* ignore */
       }
     };
     fetchRegions();
@@ -107,14 +105,12 @@ export default function Register() {
 
   const validate = () => {
     const newErrors = {};
-    if (!form.name)    newErrors.name    = 'Name is required';
-    if (!form.email)   newErrors.email   = 'Email is required';
-    if (!form.phone)   newErrors.phone   = 'Phone is required';
-    if (!form.role)    newErrors.role    = 'Role is required';
-    if (!form.password) newErrors.password = 'Password is required';
-    else if (form.password.length < 8) newErrors.password = 'Min 8 characters';
-    if (form.password !== form.password_confirmation)
-      newErrors.password_confirmation = 'Passwords do not match';
+    if (!form.name) newErrors.name = t('auth.validation.nameRequired');
+    if (!form.email) newErrors.email = t('auth.validation.emailRequired');
+    if (!form.phone) newErrors.phone = t('auth.validation.phoneRequired');
+    if (!form.password) newErrors.password = t('auth.validation.passwordRequired');
+    else if (form.password.length < 8) newErrors.password = t('auth.validation.passwordMin');
+    if (form.password !== form.password_confirmation) newErrors.password_confirmation = t('auth.validation.passwordsMismatch');
     return newErrors;
   };
 
@@ -132,12 +128,12 @@ export default function Register() {
         password_confirmation: form.password_confirmation,
         region_id:             form.region_id || null,
       });
-      toast.success('Registered! Please verify your email.');
+      toast.success(t('toasts.registeredVerify'));
       setStep(2);
     } catch (err) {
       const serverErrors = err.response?.data?.errors;
       if (serverErrors) setErrors(serverErrors);
-      else toast.error(err.response?.data?.message || 'Registration failed');
+      else toast.error(err.response?.data?.message || t('toasts.registrationFailed'));
     } finally {
       setLoading(false);
     }
@@ -146,15 +142,18 @@ export default function Register() {
   // Verify OTP
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
-    if (!otp) { toast.error('Please enter the OTP'); return; }
+    if (!otp) {
+      toast.error(t('toasts.enterOtp'));
+      return;
+    }
     setLoading(true);
     try {
 
       // await api.post('/auth/verify-otp', { phone: form.phone, otp });
-      toast.success('Email verified! Please login.');
+      toast.success(t('toasts.emailVerified'));
       navigate('/login');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid OTP');
+      toast.error(err.response?.data?.message || t('toasts.invalidOtp'));
     } finally {
       setLoading(false);
     }
@@ -164,85 +163,87 @@ export default function Register() {
   const handleResendOtp = async () => {
     try {
       // await api.post('/auth/send-otp', { phone: form.phone });
-      toast.success('OTP resent!');
+      toast.success(t('toasts.otpResent'));
     } catch {
-      toast.error('Failed to resend OTP');
+      toast.error(t('toasts.otpResendFailed'));
     }
   };
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      bgcolor: '#f0f4f8',
-      py: 4,
-    }}>
-      <Card sx={{ width: 480, borderRadius: 3, boxShadow: 4 }}>
-        <CardContent sx={{ p: 4 }}>
-
-          {/* Logo */}
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        px: 2,
+        py: 4,
+        background: (t) =>
+          `radial-gradient(1000px 500px at 80% 10%, ${t.palette.primary.light} 0%, transparent 50%), ${t.palette.background.default}`,
+      }}
+    >
+      <Card sx={{ width: '100%', maxWidth: 520, boxShadow: '0 16px 48px rgba(30, 45, 36, 0.1)' }}>
+        <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
           <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Pets sx={{ fontSize: 48, color: 'primary.main' }} />
-            <Typography variant="h5" fontWeight="bold" mt={1}>ADAN</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Animal Disease Alert Network
+            <Box
+              sx={{
+                width: 56,
+                height: 56,
+                borderRadius: 3,
+                bgcolor: 'primary.light',
+                color: 'primary.dark',
+                display: 'inline-grid',
+                placeItems: 'center',
+                mb: 1.5,
+              }}
+            >
+              <Pets sx={{ fontSize: 32 }} />
+            </Box>
+            <Typography variant="h5" fontWeight={800} sx={{ letterSpacing: '-0.03em' }}>
+              {t('brand.name')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {t('auth.registerSubtitle')}
             </Typography>
           </Box>
 
           {step === 1 && (
             <>
               <Typography variant="h6" fontWeight="bold" mb={2}>
-                Create Account
+                {t('auth.createAccountTitle')}
               </Typography>
 
               <Box component="form" onSubmit={handleSubmit}>
 
                 <TextField
-                  fullWidth label="Full Name" name="name"
+                  fullWidth label={t('auth.fullName')} name="name"
                   value={form.name} onChange={handleChange}
                   error={!!errors.name} helperText={errors.name}
                   margin="normal"
                 />
 
                 <TextField
-                  fullWidth label="Email" name="email" type="email"
+                  fullWidth label={t('auth.email')} name="email" type="email"
                   value={form.email} onChange={handleChange}
                   error={!!errors.email} helperText={errors.email}
                   margin="normal"
                 />
 
                 <TextField
-                  fullWidth label="Phone" name="phone"
+                  fullWidth label={t('auth.phone')} name="phone"
                   value={form.phone} onChange={handleChange}
                   error={!!errors.phone} helperText={errors.phone}
                   margin="normal"
                   placeholder="+201000000000"
                 />
 
-                {/* Role */}
-                <FormControl fullWidth margin="normal" error={!!errors.role}>
-                  <InputLabel>Role</InputLabel>
-                  <Select
-                    name="role"
-                    value={form.role}
-                    onChange={handleChange}
-                    label="Role"
-                  >
-                    <MenuItem value="customer">🌾 Breeder / Farm Owner</MenuItem>
-                    <MenuItem value="doctor">🩺 Veterinarian</MenuItem>
-                  </Select>
-                  {errors.role && <FormHelperText>{errors.role}</FormHelperText>}
-                </FormControl>
-
                 {/* Country */}
                 <FormControl fullWidth margin="normal">
-                  <InputLabel>Country</InputLabel>
+                  <InputLabel>{t('auth.country')}</InputLabel>
                   <Select
                     value={selectedCountry}
                     onChange={(e) => setSelectedCountry(e.target.value)}
-                    label="Country"
+                    label={t('auth.country')}
                   >
                     {countries.map(c => (
                       <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
@@ -253,11 +254,11 @@ export default function Register() {
                 {/* Governorate */}
                 {governorates.length > 0 && (
                   <FormControl fullWidth margin="normal">
-                    <InputLabel>Governorate</InputLabel>
+                    <InputLabel>{t('auth.governorate')}</InputLabel>
                     <Select
                       value={selectedGovernorate}
                       onChange={(e) => setSelectedGovernorate(e.target.value)}
-                      label="Governorate"
+                      label={t('auth.governorate')}
                     >
                       {governorates.map(g => (
                         <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>
@@ -269,11 +270,11 @@ export default function Register() {
                 {/* City */}
                 {cities.length > 0 && (
                   <FormControl fullWidth margin="normal">
-                    <InputLabel>City</InputLabel>
+                    <InputLabel>{t('auth.city')}</InputLabel>
                     <Select
                       value={selectedCity}
                       onChange={(e) => setSelectedCity(e.target.value)}
-                      label="City"
+                      label={t('auth.city')}
                     >
                       {cities.map(c => (
                         <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
@@ -285,12 +286,12 @@ export default function Register() {
                 {/* Region */}
                 {regions.length > 0 && (
                   <FormControl fullWidth margin="normal" error={!!errors.region_id}>
-                    <InputLabel>Region</InputLabel>
+                    <InputLabel>{t('auth.region')}</InputLabel>
                     <Select
                       name="region_id"
                       value={form.region_id}
                       onChange={handleChange}
-                      label="Region"
+                      label={t('auth.region')}
                     >
                       {regions.map(r => (
                         <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
@@ -303,7 +304,7 @@ export default function Register() {
                 )}
 
                 <TextField
-                  fullWidth label="Password" name="password"
+                  fullWidth label={t('auth.password')} name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={form.password} onChange={handleChange}
                   error={!!errors.password} helperText={errors.password}
@@ -320,7 +321,7 @@ export default function Register() {
                 />
 
                 <TextField
-                  fullWidth label="Confirm Password" name="password_confirmation"
+                  fullWidth label={t('auth.confirmPassword')} name="password_confirmation"
                   type="password"
                   value={form.password_confirmation} onChange={handleChange}
                   error={!!errors.password_confirmation}
@@ -333,15 +334,15 @@ export default function Register() {
                   size="large" disabled={loading}
                   sx={{ mt: 2, borderRadius: 2, py: 1.3 }}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Register'}
+                  {loading ? <CircularProgress size={24} color="inherit" /> : t('auth.registerButton')}
                 </Button>
 
               </Box>
 
               <Typography variant="body2" textAlign="center" mt={2}>
-                Already have an account?{' '}
+                {t('auth.alreadyHaveAccount')}{' '}
                 <Link to="/login" style={{ color: '#1976d2', fontWeight: 'bold' }}>
-                  Login
+                  {t('auth.loginLink')}
                 </Link>
               </Typography>
             </>
@@ -350,17 +351,17 @@ export default function Register() {
           {step === 2 && (
             <>
               <Typography variant="h6" fontWeight="bold" mb={1}>
-                Verify Your Email
+                {t('auth.verifyEmailTitle')}
               </Typography>
 
               <Alert severity="info" sx={{ mb: 3 }}>
-                We sent a verification code to <b>{form.email}</b>. Please check your inbox.
+                {t('auth.verifyEmailAlert', { email: form.email })}
               </Alert>
 
               <Box component="form" onSubmit={handleVerifyOtp}>
                 <TextField
                   fullWidth
-                  label="Enter OTP Code"
+                  label={t('auth.otpCode')}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                   margin="normal"
@@ -373,7 +374,7 @@ export default function Register() {
                   size="large" disabled={loading}
                   sx={{ mt: 2, borderRadius: 2, py: 1.3 }}
                 >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Verify Email'}
+                  {loading ? <CircularProgress size={24} color="inherit" /> : t('auth.verifyEmail')}
                 </Button>
 
                 <Button
@@ -381,7 +382,7 @@ export default function Register() {
                   onClick={handleResendOtp}
                   sx={{ mt: 1 }}
                 >
-                  Resend OTP
+                  {t('auth.resendOtp')}
                 </Button>
 
                 <Button
@@ -389,7 +390,7 @@ export default function Register() {
                   onClick={() => setStep(1)}
                   sx={{ mt: 0.5, color: 'text.secondary' }}
                 >
-                  ← Back to Register
+                  {t('auth.backToRegister')}
                 </Button>
 
               </Box>

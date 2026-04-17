@@ -1,26 +1,39 @@
 import { useState, useEffect } from 'react';
 import AuthContext from './AuthContext';
+import api from '../api/axios';
+import { getWebFcmToken } from '../firebase/fcmToken';
 
 export default function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = () => {
+    let cancelled = false;
+
+    (async () => {
       try {
         const token = localStorage.getItem('token');
         const savedUser = localStorage.getItem('user');
         if (token && savedUser) {
           setUser(JSON.parse(savedUser));
+          const fcm = await getWebFcmToken().catch(() => null);
+          if (!cancelled && fcm) {
+            await api.post('/auth/fcm-token', { fcm_token: fcm }).catch(() => {});
+          }
         }
       } catch {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
+    })();
+
+    return () => {
+      cancelled = true;
     };
-    initAuth();
   }, []);
 
   const login = (token, userData) => {

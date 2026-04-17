@@ -1,55 +1,85 @@
 import { useState, useEffect } from 'react';
 import {
-  Box, Card, CardContent, Typography, Button, Chip,
-  Grid, Avatar, IconButton, Tooltip, TextField,
-  InputAdornment, CircularProgress, Dialog, DialogTitle,
-  DialogContent, DialogActions
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Chip,
+  Avatar,
+  IconButton,
+  Tooltip,
+  TextField,
+  InputAdornment,
+  Skeleton,
+  Stack,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
-import { Add, Search, Pets, Edit, Delete, Vaccines } from '@mui/icons-material';
+import { AddRounded, SearchRounded, PetsRounded, EditRounded, DeleteOutlineRounded, VaccinesRounded, RefreshRounded } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
+import PageHeader from '../../components/shared/PageHeader';
 
 const categoryColor = (cat) => {
   const map = {
-    Cow:     '#1976d2',
-    Dog:     '#2e7d32',
-    Sheep:   '#ed6c02',
-    Chicken: '#d32f2f',
-    Horse:   '#7b1fa2',
+    Cow: '#4a7c59',
+    Dog: '#8d6e63',
+    Sheep: '#c9a227',
+    Chicken: '#c45c52',
+    Horse: '#5c4d7d',
   };
-  return map[cat] || '#555';
+  return map[cat] || '#4a7c59';
 };
 
+function healthSummary(animal, t) {
+  if (animal.health_status) return { label: animal.health_status, tone: 'default' };
+  if (animal.notes?.toLowerCase?.().includes('sick')) return { label: t('animals.needsCare'), tone: 'warning' };
+  return { label: t('animals.looksStable'), tone: 'success' };
+}
+
+function vaccineSummary(animal, t) {
+  if (!animal.last_vaccine_date) return { label: t('animals.noShot'), tone: 'warning' };
+  return { label: t('animals.lastShot', { date: animal.last_vaccine_date }), tone: 'success' };
+}
+
 export default function AnimalsList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const [animals, setAnimals]   = useState([]);
+  const [animals, setAnimals] = useState([]);
   const [filtered, setFiltered] = useState([]);
-  const [search, setSearch]     = useState('');
-  const [loading, setLoading]   = useState(true);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
   const [deleteId, setDeleteId] = useState(null);
 
+  const fetchAnimals = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/my-animals');
+      const data = res.data?.data ?? res.data;
+      const list = Array.isArray(data) ? data : [];
+      setAnimals(list);
+      setFiltered(list);
+    } catch {
+      toast.error(t('toasts.animalsLoadFailed'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchAnimals = async () => {
-      try {
-        const res = await api.get('/my-animals');
-        const data = res.data?.data ?? res.data;
-        const list = Array.isArray(data) ? data : [];
-        setAnimals(list);
-        setFiltered(list);
-      } catch {
-        toast.error('Failed to load animals');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchAnimals();
   }, []);
 
   useEffect(() => {
-    const result = animals.filter(a =>
-      a.nickname?.toLowerCase().includes(search.toLowerCase()) ||
-      a.animal?.name?.toLowerCase().includes(search.toLowerCase())
+    const result = animals.filter(
+      (a) =>
+        a.nickname?.toLowerCase().includes(search.toLowerCase()) ||
+        a.animal?.name?.toLowerCase().includes(search.toLowerCase()),
     );
     setFiltered(result);
   }, [search, animals]);
@@ -57,12 +87,12 @@ export default function AnimalsList() {
   const handleDelete = async () => {
     try {
       await api.delete(`/my-animals/${deleteId}`);
-      const updated = animals.filter(a => a.id !== deleteId);
+      const updated = animals.filter((a) => a.id !== deleteId);
       setAnimals(updated);
       setFiltered(updated);
-      toast.success('Animal removed successfully');
+      toast.success(t('toasts.animalRemoved'));
     } catch {
-      toast.error('Failed to remove animal');
+      toast.error(t('toasts.animalRemoveFailed'));
     } finally {
       setDeleteId(null);
     }
@@ -70,138 +100,155 @@ export default function AnimalsList() {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-        <CircularProgress />
-      </Box>
+      <Stack spacing={2}>
+        <Skeleton variant="rounded" height={52} />
+        <Skeleton variant="rounded" height={140} />
+        <Skeleton variant="rounded" height={140} />
+      </Stack>
     );
   }
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight="bold">My Animals</Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate("/app/animals/create")}
-          sx={{ borderRadius: 2 }}
-        >
-          Add Animal
-        </Button>
-      </Box>
+      <PageHeader
+        title={t('animals.title')}
+        subtitle={t('animals.subtitle')}
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshRounded />}
+              onClick={fetchAnimals}
+              disabled={loading}
+              sx={{ fontWeight: 700, borderRadius: 999, px: 2.5 }}
+            >
+              {t('common.refresh')}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddRounded />}
+              onClick={() => navigate('/app/animals/create')}
+              sx={{ fontWeight: 800, borderRadius: 999, px: 2.5 }}
+            >
+              {t('animals.addAnimal')}
+            </Button>
+          </>
+        }
+      />
 
-      {/* Search */}
       <TextField
-        placeholder="Search by name or category..."
+        placeholder={t('animals.searchPlaceholder')}
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        size="small"
-        sx={{ mb: 3, width: 300 }}
+        fullWidth
+        sx={{ mb: 2.5 }}
         InputProps={{
           startAdornment: (
             <InputAdornment position="start">
-              <Search fontSize="small" />
+              <SearchRounded fontSize="small" color="action" />
             </InputAdornment>
           ),
         }}
       />
 
-      {/* Animals Grid */}
-      <Grid container spacing={3}>
+      <Stack spacing={1.5}>
         {filtered.map((animal) => {
           const categoryName = animal.animal?.name ?? animal.category ?? '';
           const color = categoryColor(categoryName);
+          const health = healthSummary(animal, t);
+          const vac = vaccineSummary(animal, t);
           return (
-            <Grid item xs={12} sm={6} md={4} key={animal.id}>
-              <Card sx={{ borderRadius: 3, boxShadow: 2, '&:hover': { boxShadow: 4 }, transition: '0.2s' }}>
-                <CardContent>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                      <Avatar sx={{ bgcolor: color, width: 48, height: 48 }}>
-                        <Pets />
-                      </Avatar>
-                      <Box>
-                        <Typography variant="h6" fontWeight="bold">
-                          {animal.nickname}
-                        </Typography>
-                        <Chip
-                          label={categoryName}
-                          size="small"
-                          sx={{
-                            bgcolor: `${color}22`,
-                            color: color,
-                            fontWeight: 'bold',
-                            fontSize: 11
-                          }}
-                        />
-                      </Box>
-                    </Box>
-                    <Box>
-                      <Tooltip title="Edit">
-                        <IconButton
-                          size="small"
-                          onClick={() => navigate(`/app/animals/edit/${animal.id}`)}
-                        >
-                          <Edit fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => setDeleteId(animal.id)}
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </Box>
-
-                  <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      🎂 Birth Date: <b>{animal.birth_date ?? 'N/A'}</b>
+            <Card key={animal.id}>
+              <CardContent sx={{ p: 2.5 }}>
+                <Stack direction="row" spacing={2} alignItems="flex-start">
+                  <Avatar sx={{ bgcolor: `${color}22`, color, width: 52, height: 52 }}>
+                    <PetsRounded />
+                  </Avatar>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                      <Typography variant="h6" fontWeight={800} sx={{ fontSize: '1.1rem' }}>
+                        {animal.nickname}
+                      </Typography>
+                      <Stack direction="row">
+                        <Tooltip title={t('animals.editTooltip')}>
+                          <IconButton size="small" onClick={() => navigate(`/app/animals/edit/${animal.id}`)}>
+                            <EditRounded fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title={t('animals.removeTooltip')}>
+                          <IconButton size="small" color="error" onClick={() => setDeleteId(animal.id)}>
+                            <DeleteOutlineRounded fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </Stack>
+                    <Chip
+                      label={categoryName || t('animals.fallbackCategory')}
+                      size="small"
+                      sx={{ mt: 1, fontWeight: 800, bgcolor: `${color}18`, color }}
+                    />
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 2 }}>
+                      <Chip
+                        label={t('animals.healthChip', { label: health.label })}
+                        variant="outlined"
+                        color={health.tone === 'warning' ? 'warning' : health.tone === 'success' ? 'success' : 'default'}
+                        sx={{ fontWeight: 700, justifyContent: 'flex-start' }}
+                      />
+                      <Chip
+                        label={vac.label}
+                        variant="outlined"
+                        color={vac.tone === 'warning' ? 'warning' : 'success'}
+                        sx={{ fontWeight: 700, justifyContent: 'flex-start' }}
+                      />
+                    </Stack>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+                      {animal.birth_date ? t('animals.born', { date: animal.birth_date }) : t('animals.bornUnknown')}
                     </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      💉 Last Vaccine: <b>{animal.last_vaccine_date ?? 'N/A'}</b>
-                    </Typography>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      startIcon={<VaccinesRounded />}
+                      sx={{ mt: 2, fontWeight: 700, borderRadius: 999 }}
+                      onClick={() => navigate(`/app/vaccines?animal/${animal.id}`)}
+                    >
+                      {t('animals.vaccinationPlan')}
+                    </Button>
                   </Box>
-                      {/* npm run dev */}
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    size="small"
-                    startIcon={<Vaccines />}
-                    sx={{ mt: 2, borderRadius: 2 }}
-                    onClick={() => navigate(`/app/vaccines?animal/${animal.id}`)}
-                  >
-                    View Vaccines
-                  </Button>
-                </CardContent>
-              </Card>
-            </Grid>
+                </Stack>
+              </CardContent>
+            </Card>
           );
         })}
 
         {filtered.length === 0 && (
-          <Grid item xs={12}>
-            <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
-              <Pets sx={{ fontSize: 48, mb: 1, opacity: 0.3 }} />
-              <Typography>No animals found</Typography>
-            </Box>
-          </Grid>
+          <Card variant="outlined" sx={{ borderStyle: 'dashed' }}>
+            <CardContent sx={{ textAlign: 'center', py: 6 }}>
+              <PetsRounded sx={{ fontSize: 52, color: 'text.disabled', mb: 1 }} />
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                {t('animals.emptySearch')}
+              </Typography>
+              <Button variant="contained" startIcon={<AddRounded />} onClick={() => navigate('/app/animals/create')}>
+                {t('animals.addAnimal')}
+              </Button>
+            </CardContent>
+          </Card>
         )}
-      </Grid>
+      </Stack>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)}>
-        <DialogTitle>Remove Animal</DialogTitle>
+      <Dialog open={!!deleteId} onClose={() => setDeleteId(null)} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>{t('animals.deleteTitle')}</DialogTitle>
         <DialogContent>
-          <Typography>Are you sure you want to remove this animal?</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t('animals.dialogBody')}
+          </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteId(null)}>Cancel</Button>
-          <Button onClick={handleDelete} color="error" variant="contained">Delete</Button>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button fullWidth variant="outlined" onClick={() => setDeleteId(null)}>
+            {t('common.cancel')}
+          </Button>
+          <Button fullWidth variant="contained" color="error" onClick={handleDelete} sx={{ fontWeight: 800 }}>
+            {t('animals.removeTooltip')}
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

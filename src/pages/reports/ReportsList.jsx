@@ -1,193 +1,211 @@
 import { useState, useEffect } from 'react';
 import {
-  Box, Card, CardContent, Typography, Button, Chip,
-  Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, TablePagination, IconButton, Tooltip,
-  TextField, InputAdornment, Avatar
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Chip,
+  TextField,
+  InputAdornment,
+  Stack,
+  Skeleton,
+  IconButton,
 } from '@mui/material';
-import {
-  Add, Search, Visibility, Report
-} from '@mui/icons-material';
+import { AddRounded, SearchRounded, ReportRounded, ChevronRightRounded, RefreshRounded } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
+import PageHeader from '../../components/shared/PageHeader';
 
-const statusColor = (status) => {
-  if (status === 'confirmed') return 'success';
-  if (status === 'pending')   return 'warning';
-  if (status === 'resolved')  return 'info';
-  return 'default';
+const statusStyle = (status) => {
+  if (status === 'confirmed') return { bg: 'rgba(184, 92, 84, 0.12)', fg: '#a34740' };
+  if (status === 'pending') return { bg: 'rgba(201, 162, 39, 0.15)', fg: '#8a6d12' };
+  if (status === 'resolved') return { bg: 'rgba(61, 139, 99, 0.12)', fg: '#2d6a4f' };
+  return { bg: 'action.hover', fg: 'text.secondary' };
 };
 
+const PAGE = 8;
+
 export default function ReportsList() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
-  const [reports, setReports]   = useState([]);
+  const [reports, setReports] = useState([]);
   const [filtered, setFiltered] = useState([]);
-  const [search, setSearch]     = useState('');
-  const [page, setPage]         = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
-  const [, setLoading]   = useState(true);
+  const [search, setSearch] = useState('');
+  const [visible, setVisible] = useState(PAGE);
+  const [loading, setLoading] = useState(true);
+
+  const fetchReports = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/reports');
+      const data = res.data?.data ?? res.data ?? [];
+      const list = Array.isArray(data) ? data : [];
+      setReports(list);
+      setFiltered(list);
+    } catch {
+      toast.error(t('reports.loadFailed'));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchReports = async () => {
-      try {
-        const res  = await api.get('/reports');
-        const data = res.data?.data ?? res.data ?? [];
-        const list = Array.isArray(data) ? data : [];
-        setReports(list);
-        setFiltered(list);
-      } catch {
-        toast.error('Failed to load reports');
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchReports();
   }, []);
 
   useEffect(() => {
-    const result = reports.filter(r =>
-      r.title?.toLowerCase().includes(search.toLowerCase()) ||
-      r.region?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      r.region?.toLowerCase()?.includes(search.toLowerCase())
+    const result = reports.filter(
+      (r) =>
+        r.title?.toLowerCase().includes(search.toLowerCase()) ||
+        r.region?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        String(r.region ?? '')
+          .toLowerCase()
+          .includes(search.toLowerCase()),
     );
     setFiltered(result);
-    setPage(0);
+    setVisible(PAGE);
   }, [search, reports]);
+
+  const slice = filtered.slice(0, visible);
+  const hasMore = visible < filtered.length;
+
+  if (loading) {
+    return (
+      <Stack spacing={1.5}>
+        <Skeleton variant="rounded" height={48} />
+        <Skeleton variant="rounded" height={100} />
+        <Skeleton variant="rounded" height={100} />
+      </Stack>
+    );
+  }
 
   return (
     <Box>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" fontWeight="bold">
-          Disease Reports
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => navigate("/app/reports/create")}
-          sx={{ borderRadius: 2 }}
-        >
-          New Report
-        </Button>
-      </Box>
+      <PageHeader
+        title={t('reports.listTitle')}
+        subtitle={t('reports.listSubtitle')}
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshRounded />}
+              onClick={fetchReports}
+              disabled={loading}
+              sx={{ fontWeight: 700, borderRadius: 999, px: 2.5 }}
+            >
+              {t('common.refresh')}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddRounded />}
+              onClick={() => navigate('/app/reports/create')}
+              sx={{ fontWeight: 800, borderRadius: 999, px: 2.5 }}
+            >
+              {t('reports.newReport')}
+            </Button>
+          </>
+        }
+      />
 
-      <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
-        <CardContent>
+      <TextField
+        placeholder={t('reports.searchPlaceholder')}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        fullWidth
+        sx={{ mb: 2 }}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchRounded fontSize="small" color="action" />
+            </InputAdornment>
+          ),
+        }}
+      />
 
-          {/* Search */}
-          <TextField
-            placeholder="Search by title or region..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            size="small"
-            fullWidth
-            sx={{ mb: 2, maxWidth: 300 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Search fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
+      <Stack spacing={1.5}>
+        {slice.map((report) => {
+          const st = statusStyle(report.status);
+          return (
+            <Card
+              key={report.id}
+              onClick={() => navigate(`/app/reports/${report.id}`)}
+              sx={{
+                cursor: 'pointer',
+                transition: 'transform 0.15s ease, box-shadow 0.2s ease',
+                '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' },
+              }}
+            >
+              <CardContent sx={{ p: 2.5, display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                <Box
+                  sx={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 2,
+                    bgcolor: 'rgba(196, 92, 82, 0.1)',
+                    color: 'error.main',
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  <ReportRounded />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography variant="subtitle1" fontWeight={800} sx={{ pr: 1 }}>
+                    {report.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, lineHeight: 1.45 }} noWrap>
+                    {report.description}
+                  </Typography>
+                  <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1.5 }} alignItems="center">
+                    <Chip
+                      label={report.status}
+                      size="small"
+                      sx={{
+                        fontWeight: 800,
+                        textTransform: 'capitalize',
+                        bgcolor: st.bg,
+                        color: st.fg,
+                      }}
+                    />
+                    <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                      {report.region?.name ?? report.region ?? t('reports.areaFallback')}
+                    </Typography>
+                    <Typography variant="caption" color="text.disabled" sx={{ ml: { sm: 'auto' } }}>
+                      {report.created_at?.slice(0, 10)}
+                    </Typography>
+                  </Stack>
+                </Box>
+                <IconButton size="small" sx={{ color: 'text.disabled', mt: 0.5 }}>
+                  <ChevronRightRounded />
+                </IconButton>
+              </CardContent>
+            </Card>
+          );
+        })}
 
-          {/* Table */}
-          <TableContainer sx={{ overflowX: 'auto' }}>
-            <Table sx={{ minWidth: 600 }}>
-              <TableHead>
-                <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                  <TableCell><b>id</b></TableCell>
-                  <TableCell><b>Title</b></TableCell>
-                  <TableCell><b>Region</b></TableCell>
-                  <TableCell sx={{ display: {md: 'table-cell' } }}>
-                    <b>Description</b>
-                  </TableCell>
-                  <TableCell><b>Status</b></TableCell>
-                  <TableCell sx={{ display: {sm: 'table-cell' } }}>
-                    <b>Date</b>
-                  </TableCell>
-                  <TableCell><b>Actions</b></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filtered
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((report, index) => (
-                    <TableRow key={report.id} hover>
-                      <TableCell>{page * rowsPerPage + index + 1}</TableCell>
-                      <TableCell>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Avatar sx={{ bgcolor: '#ffebee', width: 28, height: 28, flexShrink: 0 }}>
-                            <Report sx={{ color: '#d32f2f', fontSize: 14 }} />
-                          </Avatar>
-                          <Typography variant="body2" sx={{
-                            maxWidth: { xs: 100, sm: 200 },
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {report.title}
-                          </Typography>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        {report.region?.name ?? report.region}
-                      </TableCell>
-                      <TableCell sx={{ display: {md: 'table-cell' }, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {report.description}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={report.status}
-                          color={statusColor(report.status)}
-                          size="small"
-                          sx={{ textTransform: 'capitalize', fontWeight: 'bold' }}
-                        />
-                      </TableCell>
-                      <TableCell sx={{ display: { sm: 'table-cell' } }}>
-                        {report.created_at?.slice(0, 10)}
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title="View Details">
-                          <IconButton
-                            size="small"
-                            color="primary"
-                            onClick={() => navigate(`/app/reports/${report.id}`)}
-                          >
-                            <Visibility fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={7} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                      No reports found
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
+        {filtered.length === 0 && (
+          <Card variant="outlined" sx={{ borderStyle: 'dashed' }}>
+            <CardContent sx={{ textAlign: 'center', py: 6 }}>
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                {t('reports.noSearchMatch')}
+              </Typography>
+              <Button variant="contained" startIcon={<AddRounded />} onClick={() => navigate('/app/reports/create')}>
+                {t('reports.reportCase')}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
-          {/* Pagination */}
-          <TablePagination
-            component="div"
-            count={filtered.length}
-            page={page}
-            onPageChange={(e, newPage) => setPage(newPage)}
-            rowsPerPage={rowsPerPage}
-            onRowsPerPageChange={(e) => {
-              setRowsPerPage(parseInt(e.target.value, 10));
-              setPage(0);
-            }}
-            rowsPerPageOptions={[5, 10, 25]}
-          />
-
-        </CardContent>
-      </Card>
+        {hasMore && (
+          <Button variant="outlined" fullWidth onClick={() => setVisible((v) => v + PAGE)} sx={{ py: 1.5, fontWeight: 700 }}>
+            {t('reports.loadMore')}
+          </Button>
+        )}
+      </Stack>
     </Box>
   );
 }

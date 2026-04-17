@@ -1,293 +1,360 @@
-import { useState, useEffect } from 'react';
-import { toast } from 'react-toastify';
+import { useState, useEffect, useMemo } from 'react';
 import {
-  Box, Card, CardContent, Typography,
-  CircularProgress, Avatar, Divider
+  Box,
+  Typography,
+  Button,
+  Card,
+  CardContent,
+  Avatar,
+  Chip,
+  Divider,
+  Container,
+  Stack,
 } from '@mui/material';
 import {
-  Report, Pets, Warning, Notifications
+  ReportRounded,
+  PetsRounded,
+  MapRounded,
+  VaccinesRounded,
+  NotificationsRounded,
+  ListAltRounded,
+  AddRounded,
+  ArrowForwardRounded,
 } from '@mui/icons-material';
-import {
-  AreaChart, Area, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
-} from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 import api from '../../api/axios';
+import useAuth from '../../hooks/useAuth';
+import BannerStrip from '../../components/home/BannerStrip';
+import MapPreview from '../../components/home/MapPreview';
+import { STEP_IDS, FEATURE_METAS } from '../../content/landingMarketing';
+import { reportStatusColor as statusColor } from '../../utils/leafletIcons';
 
-const COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#d32f2f', '#7b1fa2'];
-
-function StatCard({ title, value, icon, color, subtitle }) {
-  return (
-    <Card sx={{ borderRadius: 3, boxShadow: 2, height: '100%' }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box>
-            <Typography variant="body2" color="text.secondary" fontWeight="medium">
-              {title}
-            </Typography>
-            <Typography variant="h4" fontWeight="bold" mt={0.5}>
-              {value ?? <CircularProgress size={24} />}
-            </Typography>
-            {subtitle && (
-              <Typography variant="caption" color="text.secondary" mt={0.5}>
-                {subtitle}
-              </Typography>
-            )}
-          </Box>
-          <Avatar sx={{ bgcolor: color, width: 56, height: 56 }}>
-            {icon}
-          </Avatar>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-}
+const WORKSPACE_KEYS = [
+  {
+    key: 'reports',
+    listPath: '/app/reports',
+    createPath: '/app/reports/create',
+    createKey: 'create',
+    icon: ReportRounded,
+    accent: '#c45c52',
+  },
+  {
+    key: 'animals',
+    listPath: '/app/animals',
+    createPath: '/app/animals/create',
+    createKey: 'create',
+    icon: PetsRounded,
+    accent: '#4a7c59',
+  },
+  {
+    key: 'vaccines',
+    listPath: '/app/vaccines',
+    createPath: '/app/vaccines',
+    createKey: 'create',
+    icon: VaccinesRounded,
+    accent: '#4a90a4',
+  },
+  {
+    key: 'map',
+    listPath: '/app/map',
+    createPath: null,
+    createKey: null,
+    icon: MapRounded,
+    accent: '#8a6d12',
+  },
+  {
+    key: 'notifications',
+    listPath: '/app/notifications',
+    createPath: null,
+    createKey: null,
+    icon: NotificationsRounded,
+    accent: '#7b5fa6',
+  },
+];
 
 export default function Dashboard() {
-  const [stats, setStats] = useState(null);
-  const [reportsChart, setReportsChart] = useState([]);
-  const [diseaseTypes, setDiseaseTypes] = useState([]);
-  const [recentReports, setRecentReports] = useState([]);
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const chipName = useMemo(() => {
+    if (!user?.name) return t('dashboard.there');
+    return user.name.split(' ')[0] || user.name;
+  }, [user?.name, t]);
+
+  const workspace = useMemo(
+    () =>
+      WORKSPACE_KEYS.map((w) => ({
+        ...w,
+        title: t(`dashboard.modules.${w.key}.title`),
+        desc: t(`dashboard.modules.${w.key}.desc`),
+        createLabel: w.createKey ? t(`dashboard.modules.${w.key}.${w.createKey}`) : null,
+      })),
+    [t],
+  );
+
   useEffect(() => {
-    const fetchDashboard = async () => {
+    const run = async () => {
       try {
-        const [reportsRes, animalsRes, notificationsRes] = await Promise.all([
-          api.get('/reports'),
-          api.get('/my-animals'),
-          api.get('/notifications/unread-count'),
-        ]);
-
-        const reports = reportsRes.data?.data ?? reportsRes.data ?? [];
-        const animals = animalsRes.data?.data ?? animalsRes.data ?? [];
-        const unread = notificationsRes.data?.count ?? 0;
-
-        setStats({
-          total_reports: Array.isArray(reports) ? reports.length : 0,
-          total_animals: Array.isArray(animals) ? animals.length : 0,
-          pending_reports: Array.isArray(reports) ? reports.filter(r => r.status === 'pending').length : 0,
-          total_notifications: unread,
-        });
-
-        setRecentReports(Array.isArray(reports) ? reports.slice(0, 4) : []);
-
-        if (Array.isArray(reports)) {
-          const monthly = {};
-          reports.forEach(r => {
-            const month = r.created_at?.slice(5, 7);
-            if (month) monthly[month] = (monthly[month] || 0) + 1;
-          });
-          setReportsChart(
-            Object.entries(monthly).map(([month, count]) => ({
-              month, reports: count,
-            }))
-          );
-
-          const typesMap = {};
-          reports.forEach(r => {
-            const key = r.status ?? 'other';
-            typesMap[key] = (typesMap[key] || 0) + 1;
-          });
-          const total = reports.length || 1;
-          setDiseaseTypes(
-            Object.entries(typesMap).map(([name, count]) => ({
-              name,
-              value: Math.round((count / total) * 100),
-            }))
-          );
-        }
-
+        const res = await api.get('/reports/approved');
+        const data = res.data?.data ?? res.data ?? [];
+        setReports(Array.isArray(data) ? data.slice(0, 10) : []);
       } catch {
-        toast.error('Failed to load dashboard data');
+        toast.error(t('toasts.mapPreviewLoadFailed'));
+        setReports([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchDashboard();
-  }, []);
-
-  const statusColor = (status) => {
-    if (status === 'confirmed') return '#2e7d32';
-    if (status === 'pending') return '#ed6c02';
-    if (status === 'resolved') return '#1976d2';
-    return '#999';
-  };
-
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
+    run();
+  }, [t]);
 
   return (
-    <Box>
-      <Typography variant="h5" fontWeight="bold" mb={3}>
-        Dashboard
-      </Typography>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 4 }}>
-        {[
-          { title: 'Total Reports', value: stats?.total_reports, icon: <Report />, color: '#d32f2f', subtitle: 'All disease reports' },
-          { title: 'My Animals', value: stats?.total_animals, icon: <Pets />, color: '#1976d2', subtitle: 'Registered animals' },
-          { title: 'Pending', value: stats?.pending_reports, icon: <Warning />, color: '#ed6c02', subtitle: 'Awaiting review' },
-          { title: 'Notifications', value: stats?.total_notifications, icon: <Notifications />, color: '#7b1fa2', subtitle: 'Unread alerts' },
-        ].map((card) => (
-          <Box
-            key={card.title}
-            sx={{ width: { xs: 'calc(50% - 8px)', md: 'calc(25% - 12px)' } }}
+    <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
+      <Box sx={{ mb: 2, mt: { xs: -0.5, sm: 0 } }}>
+        <BannerStrip />
+      </Box>
+
+      <Box
+        sx={{
+          pt: { xs: 3, md: 4 },
+          pb: { xs: 6, md: 8 },
+          px: { xs: 0, md: 0 },
+          borderRadius: { md: 3 },
+          background: (th) =>
+            `linear-gradient(165deg, ${th.palette.primary.light} 0%, ${th.palette.background.default} 50%, #f0ebe3 100%)`,
+        }}
+      >
+        <Container maxWidth="md" sx={{ textAlign: 'center' }}>
+          <Chip label={t('dashboard.hello', { name: chipName })} sx={{ mb: 2, fontWeight: 700, bgcolor: 'background.paper' }} />
+          <Typography
+            variant="h2"
+            component="h1"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: '-0.04em',
+              fontSize: { xs: '1.85rem', md: '2.65rem' },
+              lineHeight: 1.15,
+              color: 'primary.dark',
+            }}
           >
-            <StatCard {...card} />
-          </Box>
-        ))}
-      </Box>
-      {/* Charts Row */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 4 }}>
-
-        {/* Monthly Disease Reports */}
-        <Box sx={{ width: { xs: '100%', md: '350px' }, flexShrink: 0 }}>
-          <Card sx={{ borderRadius: 3, boxShadow: 2, height: '400px' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" mb={2}>
-                Monthly Disease Reports
-              </Typography>
-              {reportsChart.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
-                  <Typography variant="body2">No data available</Typography>
-                </Box>
-              ) : (
-                <Box sx={{ width: '100%', height: '350px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={reportsChart}>
-                      <defs>
-                        <linearGradient id="colorReports" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#1976d2" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#1976d2" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip />
-                      <Area
-                        type="monotone"
-                        dataKey="reports"
-                        stroke="#1976d2"
-                        strokeWidth={2}
-                        fill="url(#colorReports)"
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* Disease Types */}
-        <Box sx={{ display: 'flex', md: '350px', flexWrap: 'wrap', gap: 2, mb: 0 }}>
-          <Card sx={{ borderRadius: 3, boxShadow: 2, height: '400px' }}>
-            <CardContent>
-              <Typography variant="h6" fontWeight="bold" mb={1}>
-                Disease Types
-              </Typography>
-              {diseaseTypes.length === 0 ? (
-                <Box sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
-                  <Typography variant="body2">No data available</Typography>
-                </Box>
-              ) : (
-                <>
-                  <Box sx={{ width: '100%', height: '280px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={diseaseTypes}
-                          cx="50%"
-                          cy="35%"
-                          innerRadius={48}
-                          outerRadius={65}
-                          paddingAngle={3}
-                          dataKey="value"
-                        >
-                          {diseaseTypes.map((_, index) => (
-                            <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </Box>
-                  <Box mt={1}>
-                    {diseaseTypes.map((item, index) => (
-                      <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                        <Box sx={{ width: 10, height: 10, borderRadius: '50%', flexShrink: 0, bgcolor: COLORS[index % COLORS.length] }} />
-                        <Typography variant="caption" sx={{ textTransform: 'capitalize' }}>
-                          {item.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" ml="auto">
-                          {item.value}%
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </Box>       
-      </Box>
-
-      {/* Recent Reports */}
-      <Card sx={{ borderRadius: 3, boxShadow: 2 }}>
-        <CardContent>
-          <Typography variant="h6" fontWeight="bold" mb={2}>
-            Recent Reports
+            {t('dashboard.heroTitle')}
           </Typography>
-          <Divider sx={{ mb: 2 }} />
-          {recentReports.length === 0 ? (
-            <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
-              <Typography variant="body2">No reports yet</Typography>
+          <Typography
+            variant="h6"
+            sx={{
+              mt: 2,
+              color: 'text.secondary',
+              fontWeight: 500,
+              maxWidth: 560,
+              mx: 'auto',
+              fontSize: { xs: '0.95rem', md: '1.05rem' },
+            }}
+          >
+            {t('dashboard.heroSubtitle')}
+          </Typography>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} justifyContent="center" sx={{ mt: 3 }}>
+            <Button
+              variant="contained"
+              size="large"
+              endIcon={<ArrowForwardRounded />}
+              onClick={() => navigate('/app/reports/create')}
+              sx={{ px: 3, py: 1.25 }}
+            >
+              {t('dashboard.reportCase')}
+            </Button>
+            <Button variant="outlined" size="large" onClick={() => navigate('/app/animals')} sx={{ px: 3, py: 1.25, bgcolor: 'background.paper' }}>
+              {t('dashboard.modules.animals.title')}
+            </Button>
+          </Stack>
+        </Container>
+      </Box>
+
+      <Container maxWidth="lg" sx={{ py: { xs: 5, md: 7 } }}>
+        <Typography variant="h4" fontWeight={800} textAlign="center" sx={{ mb: 1 }}>
+          {t('dashboard.threeBeatsTitle')}
+        </Typography>
+        <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 4, maxWidth: 520, mx: 'auto' }}>
+          {t('dashboard.threeBeatsSubtitle')}
+        </Typography>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+          {STEP_IDS.map((id, i) => (
+            <Card key={id} sx={{ flex: 1 }}>
+              <CardContent sx={{ p: 3 }}>
+                <Avatar sx={{ width: 36, height: 36, mb: 2, bgcolor: 'primary.main', fontWeight: 800 }}>{i + 1}</Avatar>
+                <Typography variant="h6" fontWeight={800} gutterBottom>
+                  {t(`landing.steps.${id}.title`)}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {t(`landing.steps.${id}.text`)}
+                </Typography>
+              </CardContent>
+            </Card>
+          ))}
+        </Stack>
+      </Container>
+
+      <Typography variant="overline" fontWeight={800} color="text.secondary" letterSpacing={0.12} sx={{ display: 'block', mb: 1.5 }}>
+        {t('dashboard.workspace')}
+      </Typography>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 6 }}>
+        {workspace.map((w) => {
+          const Icon = w.icon;
+          return (
+            <Box key={w.key} sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', md: 'calc(33.33% - 11px)' } }}>
+              <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ p: 2.5, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1.5 }}>
+                    <Box
+                      sx={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 2,
+                        bgcolor: `${w.accent}18`,
+                        color: w.accent,
+                        display: 'grid',
+                        placeItems: 'center',
+                      }}
+                    >
+                      <Icon />
+                    </Box>
+                    <Typography variant="subtitle1" fontWeight={800}>
+                      {w.title}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2, flex: 1, lineHeight: 1.45 }}>
+                    {w.desc}
+                  </Typography>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                    <Button
+                      fullWidth
+                      variant="contained"
+                      startIcon={<ListAltRounded />}
+                      onClick={() => navigate(w.listPath)}
+                      sx={{ fontWeight: 700, py: 1.1, borderRadius: 999 }}
+                    >
+                      {t('common.openList')}
+                    </Button>
+                    {w.createPath && w.createLabel ? (
+                      <Button
+                        fullWidth
+                        variant="outlined"
+                        startIcon={<AddRounded />}
+                        onClick={() => navigate(w.createPath)}
+                        sx={{ fontWeight: 700, py: 1.1, borderRadius: 999 }}
+                      >
+                        {w.createLabel}
+                      </Button>
+                    ) : null}
+                  </Stack>
+                </CardContent>
+              </Card>
             </Box>
+          );
+        })}
+      </Box>
+
+      <Container maxWidth="lg" sx={{ pb: { xs: 5, md: 8 } }}>
+        <Typography variant="h4" fontWeight={800} textAlign="center" sx={{ mb: 1 }}>
+          {t('dashboard.everythingTitle')}
+        </Typography>
+        <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 4 }}>
+          {t('dashboard.everythingSubtitle')}
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2.5, justifyContent: 'center' }}>
+          {FEATURE_METAS.map((f) => (
+            <Box key={f.id} sx={{ width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(33.33% - 14px)' } }}>
+              <Card sx={{ height: '100%', transition: 'transform 0.2s ease, box-shadow 0.2s ease', '&:hover': { transform: 'translateY(-3px)', boxShadow: 6 } }}>
+                <CardContent sx={{ p: 3 }}>
+                  <Avatar sx={{ bgcolor: f.bg, width: 52, height: 52, mb: 2 }}>
+                    <Box sx={{ color: f.color, display: 'flex' }}>{f.icon}</Box>
+                  </Avatar>
+                  <Typography variant="h6" fontWeight={800} sx={{ mb: 1 }}>
+                    {t(`landing.features.${f.id}.title`)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {t(`landing.features.${f.id}.desc`)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Box>
+          ))}
+        </Box>
+      </Container>
+
+      <Box sx={{ bgcolor: 'background.paper', py: { xs: 5, md: 7 }, borderRadius: { md: 3 }, mb: 4 }}>
+        <Container maxWidth="lg">
+          <Typography variant="h4" fontWeight={800} textAlign="center" sx={{ mb: 1 }}>
+            {t('dashboard.snapshotsTitle')}
+          </Typography>
+          <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 3 }}>
+            {t('dashboard.snapshotsSubtitle')}
+          </Typography>
+          {loading ? (
+            <Typography align="center" color="text.secondary">
+              {t('common.loading')}
+            </Typography>
+          ) : reports.length === 0 ? (
+            <Typography align="center" color="text.secondary">
+              {t('dashboard.snapshotsEmpty')}
+            </Typography>
           ) : (
-            recentReports.map((report, index) => (
-              <Box key={report.id}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 1.2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <Avatar sx={{ bgcolor: '#f0f4f8', width: 36, height: 36, flexShrink: 0 }}>
-                      <Report sx={{ color: '#d32f2f', fontSize: 18 }} />
-                    </Avatar>
-                    <Box>
-                      <Typography variant="body2" fontWeight="medium" sx={{
-                        maxWidth: { xs: 130, sm: 300 },
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                      }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+              {reports.slice(0, 6).map((report) => (
+                <Box key={report.id} sx={{ width: { xs: '100%', sm: 'calc(50% - 8px)', md: 'calc(33.33% - 11px)' } }}>
+                  <Card>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1.5 }}>
+                        <Avatar sx={{ bgcolor: 'rgba(196, 92, 82, 0.12)', width: 40, height: 40 }}>
+                          <ReportRounded sx={{ color: 'error.main', fontSize: 20 }} />
+                        </Avatar>
+                        <Chip
+                          label={report.status}
+                          size="small"
+                          sx={{
+                            fontWeight: 700,
+                            textTransform: 'capitalize',
+                            bgcolor: `${statusColor(report.status)}22`,
+                            color: statusColor(report.status),
+                          }}
+                        />
+                      </Box>
+                      <Typography variant="subtitle1" fontWeight={800} noWrap>
                         {report.title}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {report.region?.name ?? report.region} — {report.created_at?.slice(0, 10)}
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                      >
+                        {report.description}
                       </Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{
-                    px: 1.5, py: 0.4, borderRadius: 10,
-                    bgcolor: `${statusColor(report.status)}22`,
-                    color: statusColor(report.status),
-                    fontSize: 11, fontWeight: 'bold',
-                    textTransform: 'capitalize',
-                    flexShrink: 0, ml: 1
-                  }}>
-                    {report.status}
-                  </Box>
+                      <Divider sx={{ my: 1.5 }} />
+                      <Typography variant="caption" color="text.secondary">
+                        {report.region?.name ?? report.region} · {report.created_at?.slice(0, 10)}
+                      </Typography>
+                    </CardContent>
+                  </Card>
                 </Box>
-                {index < recentReports.length - 1 && <Divider />}
-              </Box>
-            ))
+              ))}
+            </Box>
           )}
-        </CardContent>
-      </Card>
+        </Container>
+      </Box>
 
+      <Container maxWidth="lg" sx={{ pb: { xs: 4, md: 6 } }}>
+        <Typography variant="h4" fontWeight={800} textAlign="center" sx={{ mb: 1 }}>
+          {t('dashboard.mapPreviewTitle')}
+        </Typography>
+        <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 2 }}>
+          {t('dashboard.mapPreviewSubtitle')}
+        </Typography>
+        <MapPreview reports={reports} />
+      </Container>
     </Box>
   );
 }

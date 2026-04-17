@@ -8,6 +8,7 @@ import {
   CalendarToday, Person
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
 
@@ -19,19 +20,20 @@ const statusColor = (status) => {
 };
 
 export default function ReportDetails() {
-  const { id }       = useParams();
-  const navigate     = useNavigate();
-  const [report, setReport]   = useState(null);
+  const { t } = useTranslation();
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchReport = async () => {
       try {
-        const res  = await api.get(`/reports/${id}`);
+        const res = await api.get(`/reports/${id}`);
         const data = res.data?.data ?? res.data;
         setReport(data);
       } catch {
-        toast.error('Failed to load report');
+        toast.error(t('reports.detailsLoadFailed'));
       } finally {
         setLoading(false);
       }
@@ -50,9 +52,9 @@ export default function ReportDetails() {
   if (!report) {
     return (
       <Box sx={{ textAlign: 'center', mt: 10, color: 'text.secondary' }}>
-        <Typography>Report not found</Typography>
+        <Typography>{t('reports.notFound')}</Typography>
         <Button onClick={() => navigate('/app/reports')} sx={{ mt: 2 }}>
-          Back to Reports
+          {t('reports.detailsBack')}
         </Button>
       </Box>
     );
@@ -60,20 +62,18 @@ export default function ReportDetails() {
 
   return (
     <Box>
-      {/* Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 3 }}>
         <Button startIcon={<ArrowBack />} onClick={() => navigate('/app/reports')}>
-          Back
+          {t('reports.backShort')}
         </Button>
         <Typography variant="h5" fontWeight="bold">
-          Report Details
+          {t('reports.detailsTitle')}
         </Typography>
       </Box>
 
       <Card sx={{ borderRadius: 3, boxShadow: 2, maxWidth: 750 }}>
         <CardContent sx={{ p: 4 }}>
 
-          {/* Title - Status */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <Avatar sx={{ bgcolor: '#ffebee', width: 48, height: 48 }}>
@@ -92,15 +92,14 @@ export default function ReportDetails() {
 
           <Divider sx={{ mb: 3 }} />
 
-          {/* Info */}
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, mb: 3 }}>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <LocationOn sx={{ color: 'text.secondary', fontSize: 20 }} />
               <Box>
-                <Typography variant="caption" color="text.secondary">Region</Typography>
+                <Typography variant="caption" color="text.secondary">{t('reports.region')}</Typography>
                 <Typography variant="body2" fontWeight="medium">
-                  {report.region?.name ?? report.region ?? 'N/A'}
+                  {report.region?.name ?? report.region ?? t('profile.na')}
                 </Typography>
               </Box>
             </Box>
@@ -108,9 +107,9 @@ export default function ReportDetails() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <CalendarToday sx={{ color: 'text.secondary', fontSize: 20 }} />
               <Box>
-                <Typography variant="caption" color="text.secondary">Date</Typography>
+                <Typography variant="caption" color="text.secondary">{t('reports.date')}</Typography>
                 <Typography variant="body2" fontWeight="medium">
-                  {report.created_at?.slice(0, 10) ?? report.date ?? 'N/A'}
+                  {report.created_at?.slice(0, 10) ?? report.date ?? t('profile.na')}
                 </Typography>
               </Box>
             </Box>
@@ -118,9 +117,9 @@ export default function ReportDetails() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Person sx={{ color: 'text.secondary', fontSize: 20 }} />
               <Box>
-                <Typography variant="caption" color="text.secondary">Reported By</Typography>
+                <Typography variant="caption" color="text.secondary">{t('reports.reportedBy')}</Typography>
                 <Typography variant="body2" fontWeight="medium">
-                  {report.user?.name ?? 'N/A'}
+                  {report.user?.name ?? t('profile.na')}
                 </Typography>
               </Box>
             </Box>
@@ -129,7 +128,7 @@ export default function ReportDetails() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Report sx={{ color: 'text.secondary', fontSize: 20 }} />
                 <Box>
-                  <Typography variant="caption" color="text.secondary">Severity</Typography>
+                  <Typography variant="caption" color="text.secondary">{t('reports.severity')}</Typography>
                   <Typography variant="body2" fontWeight="medium" sx={{ textTransform: 'capitalize' }}>
                     {report.severity}
                   </Typography>
@@ -141,7 +140,7 @@ export default function ReportDetails() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <LocationOn sx={{ color: 'text.secondary', fontSize: 20 }} />
                 <Box>
-                  <Typography variant="caption" color="text.secondary">Coordinates</Typography>
+                  <Typography variant="caption" color="text.secondary">{t('reports.coordinates')}</Typography>
                   <Typography variant="body2" fontWeight="medium">
                     {report.latitude}, {report.longitude}
                   </Typography>
@@ -153,23 +152,21 @@ export default function ReportDetails() {
 
           <Divider sx={{ mb: 3 }} />
 
-          {/* Description */}
           <Typography variant="subtitle2" color="text.secondary" mb={1}>
-            Description
+            {t('reports.description')}
           </Typography>
           <Typography variant="body1" sx={{ lineHeight: 1.8 }}>
             {report.description}
           </Typography>
 
-          {/* Animal */}
-          {report.animal && (
+          {(report.category || report.animal) && (
             <>
               <Divider sx={{ my: 3 }} />
               <Typography variant="subtitle2" color="text.secondary" mb={1}>
-                Animal
+                {t('createReport.animalCategory')}
               </Typography>
               <Typography variant="body1">
-                {report.animal?.nickname ?? report.animal?.name ?? 'N/A'}
+                {report.category?.name ?? report.animal?.name ?? report.animal?.nickname ?? t('profile.na')}
               </Typography>
             </>
           )}

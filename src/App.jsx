@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Box, Typography } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import LandingPage from "./pages/landing/LandingPage";
 import ProtectedRoute from "./components/shared/ProtectedRoute";
 import Layout from "./components/layout/Layout";
@@ -15,6 +17,17 @@ import DiseaseMap from "./pages/map/DiseaseMap";
 import Notifications from "./pages/notifications/Notifications";
 import Profile from './pages/profile/Profile';
 // import AdminPanel from "./pages/admin/AdminPanel";
+
+function NotFoundPage() {
+  const { t } = useTranslation();
+  return (
+    <Box sx={{ p: 4, textAlign: "center" }}>
+      <Typography variant="h5" component="h1">
+        {t("app.notFound")}
+      </Typography>
+    </Box>
+  );
+}
 
 export default function App() {
   return (
@@ -47,7 +60,7 @@ export default function App() {
           {/* <Route path="admin"               element={<AdminPanel />} /> */}
         </Route>
         
-        <Route path="*" element={<h1>404 Not Found</h1>} />
+        <Route path="*" element={<NotFoundPage />} />
 
       </Routes>
     </BrowserRouter>
