@@ -14,8 +14,6 @@ const api = axios.create({
   timeout: 10000,
 });
 
-
-
 function resolveRequestLocale() {
   const raw = (i18n.language || localStorage.getItem('adan_language') || 'en').toString();
   const base = raw.split('-')[0].toLowerCase();
