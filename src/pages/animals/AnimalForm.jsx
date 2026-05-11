@@ -16,6 +16,7 @@ export default function AnimalForm() {
 
   const [loading, setLoading]       = useState(false);
   const [categories, setCategories] = useState([]);
+  const [species, setSpecies] = useState([]);
   const [form, setForm]             = useState({
     animal_id:         '',
     nickname:          '',
@@ -30,9 +31,37 @@ export default function AnimalForm() {
       try {
         const res  = await api.get('/animals/categories');
         const data = res.data?.data ?? res.data ?? [];
-        setCategories(Array.isArray(data) ? data : []);
+        const cats = Array.isArray(data) ? data : [];
+        setCategories(cats);
+
+        // Try to extract species (animal types) if the categories payload contains them.
+        // Some API responses include nested species under each category (e.g. category.animals or category.species).
+        const nested = [];
+        for (const c of cats) {
+          if (Array.isArray(c.animals) && c.animals.length > 0) {
+            nested.push(...c.animals.map(s => ({ ...s, category_id: c.id })));
+          } else if (Array.isArray(c.species) && c.species.length > 0) {
+            nested.push(...c.species.map(s => ({ ...s, category_id: c.id })));
+          } else if (Array.isArray(c.types) && c.types.length > 0) {
+            nested.push(...c.types.map(s => ({ ...s, category_id: c.id })));
+          }
+        }
+        if (nested.length > 0) {
+          setSpecies(nested);
+        } else {
+          // No nested species found — we'll attempt to fetch a dedicated species list.
+          try {
+            const sres = await api.get('/animals');
+            const sdata = sres.data?.data ?? sres.data ?? [];
+            setSpecies(Array.isArray(sdata) ? sdata : []);
+          } catch {
+            // fallback: use categories as the selectable options (preserve previous behaviour)
+            setSpecies(cats);
+          }
+        }
       } catch {
         setCategories([]);
+        setSpecies([]);
       }
     };
     fetchCategories();
@@ -120,14 +149,37 @@ export default function AnimalForm() {
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', gap: 2 }}>
+                {/* Category select (optional) - will be shown if we have distinct categories */}
+                <TextField
+                  fullWidth select label="Category" name="category_id"
+                  value={form.category_id ?? ''} onChange={(e) => {
+                    // when category changes, clear selected animal type to avoid mismatch
+                    setForm({ ...form, category_id: e.target.value, animal_id: '' });
+                    setErrors({ ...errors, category_id: '', animal_id: '' });
+                  }}
+                  disabled={categories.length === 0}
+                >
+                  <MenuItem value="">
+                    <em>All categories</em>
+                  </MenuItem>
+                  {categories.map(c => (
+                    <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                  ))}
+                </TextField>
+
                 <TextField
                   fullWidth select label="Animal Type" name="animal_id"
                   value={form.animal_id} onChange={handleChange}
                   error={!!errors.animal_id} helperText={errors.animal_id}
                 >
-                  {categories.map(c => (
-                    <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
-                  ))}
+                  <MenuItem value="">
+                    <em>Select an animal type</em>
+                  </MenuItem>
+                  {species
+                    .filter(s => !form.category_id || String(s.category_id) === String(form.category_id))
+                    .map(s => (
+                      <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+                    ))}
                 </TextField>
                 <TextField
                   fullWidth label="Nickname" name="nickname"
