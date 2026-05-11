@@ -50,6 +50,11 @@ function formatWhen(iso) {
   }
 }
 
+
+function notificationKey(notification, index) {
+  return notification.id ?? notification.notification_id ?? notification._id ?? `notification-${index}`;
+}
+
 /**
  * @param {{
  *   items: Array<Record<string, unknown>>;
@@ -78,7 +83,7 @@ export default function NotificationsList({ items, onMarkRead, onDelete, emptyPa
   return (
     <>
       {items.map((n, index) => (
-        <Box key={n.id}>
+        <Box key={notificationKey(n, index)}>
           <Box
             sx={{
               display: 'flex',
@@ -111,13 +116,13 @@ export default function NotificationsList({ items, onMarkRead, onDelete, emptyPa
             <Stack spacing={0.25} flexShrink={0}>
               {!n.read_at && (
                 <Tooltip title={t('notifications.markRead')}>
-                  <IconButton size="small" onClick={() => onMarkRead(n.id)} sx={{ color: 'primary.main' }}>
+                  <IconButton size="small" onClick={() => onMarkRead(n)} sx={{ color: 'primary.main' }}>
                     <DoneAllRounded fontSize="small" />
                   </IconButton>
                 </Tooltip>
               )}
               <Tooltip title={t('notifications.dismiss')}>
-                <IconButton size="small" onClick={() => onDelete(n.id)} sx={{ color: 'text.secondary' }}>
+                <IconButton size="small" onClick={() => onDelete(n)} sx={{ color: 'text.secondary' }}>
                   <DeleteOutlineRounded fontSize="small" />
                 </IconButton>
               </Tooltip>
