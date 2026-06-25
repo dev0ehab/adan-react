@@ -36,7 +36,7 @@ export const LANDING_BANNER_METAS = [
     requireAuth: true,
     fallbackPath: '/register',
     image:
-      'https://images.unsplash.com/photo-1584036561566-baf8f0f1ba63?auto=format&fit=crop&w=800&h=500&q=80',
+      'https://media.egyin.com/2025/6/large/17531635564634202506280458195819.jpg',
   },
   {
     id: 'map',
