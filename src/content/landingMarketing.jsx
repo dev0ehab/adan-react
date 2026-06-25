@@ -26,7 +26,7 @@ export const LANDING_BANNER_METAS = [
     id: 'report',
     path: '/app/reports/create',
     requireAuth: true,
-    fallbackPath: '/register',
+    fallbackPath: '/register', 
     image:
       'https://images.unsplash.com/photo-1560493676-04071c5f467b?auto=format&fit=crop&w=800&h=500&q=80',
   },

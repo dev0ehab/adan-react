@@ -64,11 +64,13 @@ export default function AnimalsList() {
       const list = Array.isArray(data) ? data : [];
       setAnimals(list);
       setFiltered(list);
+      console.log('RAW animals from server:', list);
     } catch {
       toast.error(t('toasts.animalsLoadFailed'));
     } finally {
       setLoading(false);
     }
+    
   };
 
   useEffect(() => {

@@ -15,7 +15,7 @@ export default function MapPreview({ reports = [] }) {
           center={[26.8206, 30.8025]}
           zoom={6}
           style={{ height: mapPreviewHeight(), width: '100%', borderRadius: 12 }}
-          scrollWheelZoom={false}
+          scrollWheelZoom={true}
         >
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
           {reports.map((report) => (

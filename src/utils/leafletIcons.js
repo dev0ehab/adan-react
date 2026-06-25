@@ -1,4 +1,4 @@
-import L from 'leaflet';
+import L from 'leaflet'; 
 
 export function ensureLeafletDefaultIcons() {
   delete L.Icon.Default.prototype._getIconUrl;

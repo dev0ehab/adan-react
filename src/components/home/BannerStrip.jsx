@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  Box,
+  Box, 
   Card,
   CardContent,
   Typography,
@@ -14,8 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuth from '../../hooks/useAuth';
 import { LANDING_BANNER_METAS } from '../../content/landingMarketing';
 
-const BANNER_FALLBACK_IMAGE =
-  'https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=800&h=500&q=80';
+const BANNER_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=800&h=500&q=80';
 
 export default function BannerStrip() {
   const { t } = useTranslation();

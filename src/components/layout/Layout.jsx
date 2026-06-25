@@ -9,7 +9,7 @@ export default function Layout() {
       <Box
         component="main"
         sx={{
-          flexGrow: 1,
+          flexGrow: 1, 
           width: '100%',
           maxWidth: '100%',
           px: { xs: 2, sm: 3 },

@@ -8,7 +8,7 @@ function resolveApiBaseURL() {
   if (import.meta.env.DEV) return 'http://adan.test/api';
   return 'https://lightgray-marten-830794.hostingersite.com/api';
 }
-
+ 
 const api = axios.create({
   baseURL: resolveApiBaseURL(),
   timeout: 10000,
