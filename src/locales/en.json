@@ -395,7 +395,8 @@
     "personalInfo": "Personal Information",
     "edit": "Edit",
     "fullName": "Full Name",
-    "phone": "Phone"
+    "phone": "Phone",
+    "location": "Location"
   },
   "animals": {
     "title": "My animals",

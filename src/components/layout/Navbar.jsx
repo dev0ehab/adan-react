@@ -40,6 +40,7 @@ import { toast } from "react-toastify";
 import api from "../../api/axios";
 import useNotifications from "../../hooks/useNotifications";
 import NotificationsList from "../notifications/NotificationsList";
+import { FCM_MESSAGE_EVENT } from "../shared/FcmListener";
 
 export default function Navbar() {
   const { t, i18n } = useTranslation();
@@ -79,8 +80,18 @@ export default function Navbar() {
         void loadUnread();
       });
     }, 60000);
-    return () => clearInterval(id);
-  }, [loadUnread]);
+    const onFcm = () => {
+      startTransition(() => {
+        void loadUnread();
+        void fetchNotifications();
+      });
+    };
+    window.addEventListener(FCM_MESSAGE_EVENT, onFcm);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener(FCM_MESSAGE_EVENT, onFcm);
+    };
+  }, [loadUnread, fetchNotifications]);
 
   const handleBellClick = (event) => {
     if (notifAnchorEl) {

@@ -16,6 +16,7 @@ import VaccineSchedule from "./pages/vaccines/VaccineSchedule";
 import DiseaseMap from "./pages/map/DiseaseMap";
 import Notifications from "./pages/notifications/Notifications";
 import Profile from './pages/profile/Profile';
+import FcmListener from "./components/shared/FcmListener";
 // import AdminPanel from "./pages/admin/AdminPanel";
 
 function NotFoundPage() {
@@ -32,6 +33,7 @@ function NotFoundPage() {
 export default function App() {
   return (
     <BrowserRouter>
+      <FcmListener />
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />

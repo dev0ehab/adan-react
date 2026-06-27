@@ -395,7 +395,8 @@
     "personalInfo": "المعلومات الشخصية",
     "edit": "تعديل",
     "fullName": "الاسم الكامل",
-    "phone": "الهاتف"
+    "phone": "الهاتف",
+    "location": "الموقع"
   },
   "animals": {
     "title": "حيواناتي",
