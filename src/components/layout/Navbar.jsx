@@ -72,24 +72,33 @@ export default function Navbar() {
   } = useNotifications({ fetchOnMount: false, onMutated: loadUnread });
 
   useEffect(() => {
-    startTransition(() => {
-      void loadUnread();
-    });
-    const id = setInterval(() => {
-      startTransition(() => {
-        void loadUnread();
-      });
-    }, 60000);
-    const onFcm = () => {
+    const refresh = () => {
       startTransition(() => {
         void loadUnread();
         void fetchNotifications();
       });
     };
+
+    refresh();
+
+    const id = setInterval(refresh, 30000);
+
+    const onFcm = () => refresh();
     window.addEventListener(FCM_MESSAGE_EVENT, onFcm);
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') {
+        refresh();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', refresh);
+
     return () => {
       clearInterval(id);
       window.removeEventListener(FCM_MESSAGE_EVENT, onFcm);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', refresh);
     };
   }, [loadUnread, fetchNotifications]);
 
