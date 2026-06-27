@@ -17,10 +17,13 @@ function buildFirebaseConfig() {
 }
 
 function fcmDebug(message, detail) {
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.warn(`[FCM] ${message}`, detail ?? '');
-  }
+  // eslint-disable-next-line no-console
+  console.warn(`[FCM] ${message}`, detail ?? '');
+}
+
+function messagingSwUrl() {
+  const base = import.meta.env.BASE_URL || '/';
+  return `${base}${base.endsWith('/') ? '' : '/'}firebase-messaging-sw.js`.replace(/([^:]\/)\/+/g, '$1');
 }
 
 export async function getMessagingInstance() {
@@ -162,8 +165,8 @@ export async function getWebFcmToken() {
       return null;
     }
 
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-      scope: '/',
+    const registration = await navigator.serviceWorker.register(messagingSwUrl(), {
+      scope: import.meta.env.BASE_URL || '/',
     });
     await navigator.serviceWorker.ready;
 

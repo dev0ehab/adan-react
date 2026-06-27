@@ -18,8 +18,10 @@ function buildFirebaseMessagingSwScript(env) {
   if (!cfg.apiKey || !cfg.projectId) {
     return null;
   }
+  const base = env.BASE_URL || '/';
+  const iconPath = `${base}${base.endsWith('/') ? '' : '/'}icon-192.svg`.replace(/\/{2,}/g, '/');
   const ver = '12.12.0';
-  return `/* Generated at build — set VITE_FIREBASE_* in .env */
+  return `/* Generated at build — set VITE_FIREBASE_* in .env.production */
 importScripts('https://www.gstatic.com/firebasejs/${ver}/firebase-app-compat.js','https://www.gstatic.com/firebasejs/${ver}/firebase-messaging-compat.js');
 firebase.initializeApp(${JSON.stringify(cfg)});
 const messaging = firebase.messaging();
@@ -38,15 +40,15 @@ messaging.onBackgroundMessage(async function(payload) {
   }
   return self.registration.showNotification(title, {
     body: body,
-    icon: '/vite.svg',
-    badge: '/vite.svg',
+    icon: '${iconPath}',
+    badge: '${iconPath}',
     data: payload.data || {},
   });
 });`;
 }
 
-function firebaseMessagingSwPlugin(mode) {
-  const env = loadEnv(mode, process.cwd(), '');
+function firebaseMessagingSwPlugin(mode, base) {
+  const env = { ...loadEnv(mode, process.cwd(), ''), BASE_URL: base };
   return {
     name: 'firebase-messaging-sw',
     configureServer(server) {
@@ -60,12 +62,19 @@ function firebaseMessagingSwPlugin(mode) {
           return next();
         }
         res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        res.setHeader('Cache-Control', 'no-cache');
         res.end(body);
       });
     },
-    writeBundle() {
+    closeBundle() {
       const body = buildFirebaseMessagingSwScript(env);
       if (!body) {
+        if (mode === 'production') {
+          // eslint-disable-next-line no-console
+          console.warn(
+            '[FCM] Skipped firebase-messaging-sw.js — set VITE_FIREBASE_API_KEY and VITE_FIREBASE_PROJECT_ID in .env.production',
+          );
+        }
         return;
       }
       const outDir = path.resolve(__dirname, 'dist');
@@ -76,33 +85,37 @@ function firebaseMessagingSwPlugin(mode) {
   };
 }
 
-export default defineConfig(({ mode }) => ({
-  plugins: [firebaseMessagingSwPlugin(mode), react()],
-  build: {
-    chunkSizeWarningLimit: 1000,
-    rollupOptions: {
-      output: {
-        manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+export default defineConfig(({ mode }) => {
+  const base = '/';
+  return {
+    base,
+    plugins: [firebaseMessagingSwPlugin(mode, base), react()],
+    build: {
+      chunkSizeWarningLimit: 1000,
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                return 'vendor';
+              }
+              if (id.includes('@mui')) {
+                return 'mui';
+              }
+              if (id.includes('recharts')) {
+                return 'charts';
+              }
+              if (id.includes('leaflet')) {
+                return 'map';
+              }
+              if (id.includes('firebase')) {
+                return 'firebase';
+              }
               return 'vendor';
             }
-            if (id.includes('@mui')) {
-              return 'mui';
-            }
-            if (id.includes('recharts')) {
-              return 'charts';
-            }
-            if (id.includes('leaflet')) {
-              return 'map';
-            }
-            if (id.includes('firebase')) {
-              return 'firebase';
-            }
-            return 'vendor';
-          }
+          },
         },
       },
     },
-  },
-}));
+  };
+});

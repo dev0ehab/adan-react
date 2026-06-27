@@ -1,6 +1,7 @@
 import { useEffect, useContext, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import AuthContext from '../../context/AuthContext';
+import api from '../../api/axios';
 import {
   getWebFcmToken,
   parseFcmPayload,
@@ -51,7 +52,10 @@ export default function FcmListener() {
         handleFcmPayload(payload);
       });
       if (active) {
-        void getWebFcmToken().catch(() => null);
+        const token = await getWebFcmToken().catch(() => null);
+        if (active && token) {
+          await api.post('/auth/fcm-token', { fcm_token: token }).catch(() => {});
+        }
       }
     })();
 

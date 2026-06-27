@@ -83,7 +83,16 @@ if (!vapidMatch?.[1]?.trim()) {
 }
 
 fs.writeFileSync(envPath, `${lines.join('\n')}\n`, 'utf8');
+
+const productionPath = path.join(root, '.env.production');
+const productionLines = [
+  '# Production build — public Firebase web config',
+  'VITE_API_URL=https://lightgray-marten-830794.hostingersite.com/api',
+  ...lines.filter((line) => line.startsWith('VITE_')),
+];
+fs.writeFileSync(productionPath, `${productionLines.join('\n')}\n`, 'utf8');
 console.log(`Wrote ${envPath}`);
+console.log(`Wrote ${productionPath}`);
 if (!vapidMatch?.[1]?.trim()) {
   console.log('Note: VITE_FIREBASE_VAPID_KEY still needs to be set manually in .env.local.');
 }
