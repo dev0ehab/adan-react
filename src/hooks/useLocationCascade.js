@@ -16,17 +16,41 @@ export default function useLocationCascade({ enabled = true } = {}) {
   const [cities, setCities] = useState([]);
   const [regions, setRegions] = useState([]);
 
-  const [selectedCountry, setSelectedCountry] = useState('');
-  const [selectedGovernorate, setSelectedGovernorate] = useState('');
-  const [selectedCity, setSelectedCity] = useState('');
-  const [regionId, setRegionId] = useState('');
+  const [selectedCountry, setSelectedCountryState] = useState('');
+  const [selectedGovernorate, setSelectedGovernorateState] = useState('');
+  const [selectedCity, setSelectedCityState] = useState('');
+  const [regionId, setRegionIdState] = useState('');
 
   const [governoratesLoading, setGovernoratesLoading] = useState(false);
   const [citiesLoading, setCitiesLoading] = useState(false);
   const [regionsLoading, setRegionsLoading] = useState(false);
 
-  const skipResetRef = useRef(false);
   const hydratingRef = useRef(false);
+  const pendingRegionIdRef = useRef('');
+
+  const clearPendingRegion = useCallback(() => {
+    pendingRegionIdRef.current = '';
+  }, []);
+
+  const setSelectedCountry = useCallback((value) => {
+    clearPendingRegion();
+    setSelectedCountryState(value);
+  }, [clearPendingRegion]);
+
+  const setSelectedGovernorate = useCallback((value) => {
+    clearPendingRegion();
+    setSelectedGovernorateState(value);
+  }, [clearPendingRegion]);
+
+  const setSelectedCity = useCallback((value) => {
+    clearPendingRegion();
+    setSelectedCityState(value);
+  }, [clearPendingRegion]);
+
+  const setRegionId = useCallback((value) => {
+    clearPendingRegion();
+    setRegionIdState(value);
+  }, [clearPendingRegion]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -42,19 +66,19 @@ export default function useLocationCascade({ enabled = true } = {}) {
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled || !selectedCountry) return;
+    if (!enabled || !selectedCountry || hydratingRef.current) return;
+
     const fetchGovernorates = async () => {
       setGovernoratesLoading(true);
       try {
         const res = await api.get(`/locations/countries/${selectedCountry}/governorates`);
         setGovernorates(normalizeList(res));
-        if (!skipResetRef.current && !hydratingRef.current) {
-          setCities([]);
-          setRegions([]);
-          setSelectedGovernorate('');
-          setSelectedCity('');
-          setRegionId('');
-        }
+        setCities([]);
+        setRegions([]);
+        setSelectedGovernorateState('');
+        setSelectedCityState('');
+        setRegionIdState('');
+        clearPendingRegion();
       } catch {
         setGovernorates([]);
       } finally {
@@ -62,20 +86,20 @@ export default function useLocationCascade({ enabled = true } = {}) {
       }
     };
     fetchGovernorates();
-  }, [enabled, selectedCountry]);
+  }, [enabled, selectedCountry, clearPendingRegion]);
 
   useEffect(() => {
-    if (!enabled || !selectedGovernorate) return;
+    if (!enabled || !selectedGovernorate || hydratingRef.current) return;
+
     const fetchCities = async () => {
       setCitiesLoading(true);
       try {
         const res = await api.get(`/locations/governorates/${selectedGovernorate}/cities`);
         setCities(normalizeList(res));
-        if (!skipResetRef.current && !hydratingRef.current) {
-          setRegions([]);
-          setSelectedCity('');
-          setRegionId('');
-        }
+        setRegions([]);
+        setSelectedCityState('');
+        setRegionIdState('');
+        clearPendingRegion();
       } catch {
         setCities([]);
       } finally {
@@ -83,17 +107,24 @@ export default function useLocationCascade({ enabled = true } = {}) {
       }
     };
     fetchCities();
-  }, [enabled, selectedGovernorate]);
+  }, [enabled, selectedGovernorate, clearPendingRegion]);
 
   useEffect(() => {
-    if (!enabled || !selectedCity) return;
+    if (!enabled || !selectedCity || hydratingRef.current) return;
+
     const fetchRegions = async () => {
       setRegionsLoading(true);
       try {
         const res = await api.get(`/locations/cities/${selectedCity}/regions`);
-        setRegions(normalizeList(res));
-        if (!skipResetRef.current && !hydratingRef.current) {
-          setRegionId('');
+        const list = normalizeList(res);
+        setRegions(list);
+        if (pendingRegionIdRef.current) {
+          const pending = pendingRegionIdRef.current;
+          const exists = list.some((r) => String(r.id) === pending);
+          setRegionIdState(exists ? pending : '');
+          pendingRegionIdRef.current = '';
+        } else {
+          setRegionIdState('');
         }
       } catch {
         setRegions([]);
@@ -103,6 +134,16 @@ export default function useLocationCascade({ enabled = true } = {}) {
     };
     fetchRegions();
   }, [enabled, selectedCity]);
+
+  useEffect(() => {
+    const pending = pendingRegionIdRef.current;
+    if (!pending || regions.length === 0) return;
+    const exists = regions.some((r) => String(r.id) === pending);
+    if (exists) {
+      setRegionIdState(pending);
+      pendingRegionIdRef.current = '';
+    }
+  }, [regions]);
 
   const getSnapshot = useCallback(
     () => ({
@@ -116,22 +157,25 @@ export default function useLocationCascade({ enabled = true } = {}) {
 
   const applySnapshot = useCallback((snapshot) => {
     if (!snapshot) return;
-    skipResetRef.current = true;
-    setSelectedCountry(snapshot.selectedCountry ?? '');
-    setSelectedGovernorate(snapshot.selectedGovernorate ?? '');
-    setSelectedCity(snapshot.selectedCity ?? '');
-    setRegionId(snapshot.regionId ?? '');
+    hydratingRef.current = true;
+    pendingRegionIdRef.current = snapshot.regionId ?? '';
+    setSelectedCountryState(snapshot.selectedCountry ?? '');
+    setSelectedGovernorateState(snapshot.selectedGovernorate ?? '');
+    setSelectedCityState(snapshot.selectedCity ?? '');
+    setRegionIdState(snapshot.regionId ?? '');
     queueMicrotask(() => {
-      skipResetRef.current = false;
+      hydratingRef.current = false;
     });
   }, []);
 
   const hydrateFromRegion = useCallback(async (region) => {
     if (!region?.country_id) {
-      setSelectedCountry('');
-      setSelectedGovernorate('');
-      setSelectedCity('');
-      setRegionId('');
+      hydratingRef.current = false;
+      pendingRegionIdRef.current = '';
+      setSelectedCountryState('');
+      setSelectedGovernorateState('');
+      setSelectedCityState('');
+      setRegionIdState('');
       setGovernorates([]);
       setCities([]);
       setRegions([]);
@@ -139,17 +183,19 @@ export default function useLocationCascade({ enabled = true } = {}) {
     }
 
     hydratingRef.current = true;
-    skipResetRef.current = true;
+    const targetRegionId = region.id ? String(region.id) : '';
+    pendingRegionIdRef.current = targetRegionId;
+
     try {
       const countryId = String(region.country_id);
-      setSelectedCountry(countryId);
+      setSelectedCountryState(countryId);
 
       const govRes = await api.get(`/locations/countries/${countryId}/governorates`);
       setGovernorates(normalizeList(govRes));
 
       if (region.governorate_id) {
         const governorateId = String(region.governorate_id);
-        setSelectedGovernorate(governorateId);
+        setSelectedGovernorateState(governorateId);
 
         const cityRes = await api.get(`/locations/governorates/${governorateId}/cities`);
         setCities(normalizeList(cityRes));
@@ -157,28 +203,36 @@ export default function useLocationCascade({ enabled = true } = {}) {
 
       if (region.city_id) {
         const cityId = String(region.city_id);
-        setSelectedCity(cityId);
+        setSelectedCityState(cityId);
 
         const regRes = await api.get(`/locations/cities/${cityId}/regions`);
-        setRegions(normalizeList(regRes));
-      }
+        const list = normalizeList(regRes);
+        setRegions(list);
 
-      if (region.id) {
-        setRegionId(String(region.id));
+        if (targetRegionId) {
+          const exists = list.some((r) => String(r.id) === targetRegionId);
+          setRegionIdState(exists ? targetRegionId : '');
+          if (exists) {
+            pendingRegionIdRef.current = '';
+          }
+        }
       }
     } catch {
       // leave partial state; user can re-pick
     } finally {
-      skipResetRef.current = false;
-      hydratingRef.current = false;
+      // Delay so any in-flight effects see hydratingRef=true and skip clearing regionId
+      queueMicrotask(() => {
+        hydratingRef.current = false;
+      });
     }
   }, []);
 
   const resetLocation = useCallback(() => {
-    setSelectedCountry('');
-    setSelectedGovernorate('');
-    setSelectedCity('');
-    setRegionId('');
+    pendingRegionIdRef.current = '';
+    setSelectedCountryState('');
+    setSelectedGovernorateState('');
+    setSelectedCityState('');
+    setRegionIdState('');
     setGovernorates([]);
     setCities([]);
     setRegions([]);
