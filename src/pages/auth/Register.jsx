@@ -37,6 +37,9 @@ export default function Register() {
   const [selectedCountry, setSelectedCountry]         = useState('');
   const [selectedGovernorate, setSelectedGovernorate] = useState('');
   const [selectedCity, setSelectedCity]               = useState('');
+  const [governoratesLoading, setGovernoratesLoading] = useState(false);
+  const [citiesLoading, setCitiesLoading]             = useState(false);
+  const [regionsLoading, setRegionsLoading]           = useState(false);
 
   useEffect(() => {
     const fetchCountries = async () => {
@@ -53,16 +56,20 @@ export default function Register() {
   useEffect(() => {
     if (!selectedCountry) return;
     const fetchGovernorates = async () => {
+      setGovernoratesLoading(true);
       try {
         const res = await api.get(`/locations/countries/${selectedCountry}/governorates`);
-        setGovernorates(res.data.data ?? res.data);
+        const data = res.data?.data ?? res.data ?? [];
+        setGovernorates(Array.isArray(data) ? data : []);
         setCities([]);
         setRegions([]);
         setSelectedGovernorate('');
         setSelectedCity('');
         setForm(f => ({ ...f, region_id: '' }));
       } catch {
-        /* ignore */
+        setGovernorates([]);
+      } finally {
+        setGovernoratesLoading(false);
       }
     };
     fetchGovernorates();
@@ -71,14 +78,18 @@ export default function Register() {
   useEffect(() => {
     if (!selectedGovernorate) return;
     const fetchCities = async () => {
+      setCitiesLoading(true);
       try {
         const res = await api.get(`/locations/governorates/${selectedGovernorate}/cities`);
-        setCities(res.data.data ?? res.data);
+        const data = res.data?.data ?? res.data ?? [];
+        setCities(Array.isArray(data) ? data : []);
         setRegions([]);
         setSelectedCity('');
         setForm(f => ({ ...f, region_id: '' }));
       } catch {
-        /* ignore */
+        setCities([]);
+      } finally {
+        setCitiesLoading(false);
       }
     };
     fetchCities();
@@ -87,12 +98,16 @@ export default function Register() {
   useEffect(() => {
     if (!selectedCity) return;
     const fetchRegions = async () => {
+      setRegionsLoading(true);
       try {
         const res = await api.get(`/locations/cities/${selectedCity}/regions`);
-        setRegions(res.data.data ?? res.data);
+        const data = res.data?.data ?? res.data ?? [];
+        setRegions(Array.isArray(data) ? data : []);
         setForm(f => ({ ...f, region_id: '' }));
       } catch {
-        /* ignore */
+        setRegions([]);
+      } finally {
+        setRegionsLoading(false);
       }
     };
     fetchRegions();
@@ -111,6 +126,10 @@ export default function Register() {
     if (!form.password) newErrors.password = t('auth.validation.passwordRequired');
     else if (form.password.length < 8) newErrors.password = t('auth.validation.passwordMin');
     if (form.password !== form.password_confirmation) newErrors.password_confirmation = t('auth.validation.passwordsMismatch');
+    if (!selectedCountry) newErrors.country = t('auth.validation.countryRequired');
+    else if (!selectedGovernorate) newErrors.governorate = t('createReport.validation.pickGovernorate');
+    else if (cities.length > 0 && !selectedCity) newErrors.city = t('createReport.validation.pickCity');
+    else if (regions.length > 0 && !form.region_id) newErrors.region_id = t('createReport.validation.region');
     return newErrors;
   };
 
@@ -126,7 +145,7 @@ export default function Register() {
         phone:                 form.phone,
         password:              form.password,
         password_confirmation: form.password_confirmation,
-        region_id:             form.region_id || null,
+        region_id:             form.region_id,
       });
       toast.success(t('toasts.registeredVerify'));
       setStep(2);
@@ -237,55 +256,88 @@ export default function Register() {
                   placeholder="+201000000000"
                 />
 
-                {/* Country */}
-                <FormControl fullWidth margin="normal">
+                {/* Country → Governorate → City → Region */}
+                <FormControl fullWidth margin="normal" error={!!errors.country}>
                   <InputLabel>{t('auth.country')}</InputLabel>
                   <Select
                     value={selectedCountry}
-                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    onChange={(e) => {
+                      setSelectedCountry(e.target.value);
+                      setErrors(prev => ({ ...prev, country: '', governorate: '', city: '', region_id: '' }));
+                    }}
                     label={t('auth.country')}
                   >
                     {countries.map(c => (
                       <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
                     ))}
                   </Select>
+                  {errors.country && <FormHelperText>{errors.country}</FormHelperText>}
                 </FormControl>
 
-                {/* Governorate */}
-                {governorates.length > 0 && (
-                  <FormControl fullWidth margin="normal">
+                {selectedCountry && (
+                  <FormControl
+                    fullWidth margin="normal"
+                    error={!!errors.governorate}
+                    disabled={governoratesLoading}
+                  >
                     <InputLabel>{t('auth.governorate')}</InputLabel>
                     <Select
                       value={selectedGovernorate}
-                      onChange={(e) => setSelectedGovernorate(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedGovernorate(e.target.value);
+                        setErrors(prev => ({ ...prev, governorate: '', city: '', region_id: '' }));
+                      }}
                       label={t('auth.governorate')}
                     >
                       {governorates.map(g => (
                         <MenuItem key={g.id} value={g.id}>{g.name}</MenuItem>
                       ))}
                     </Select>
+                    {governoratesLoading && (
+                      <FormHelperText>{t('createReport.locationLoadingPlaces')}</FormHelperText>
+                    )}
+                    {!governoratesLoading && governorates.length === 0 && (
+                      <FormHelperText>{t('createReport.validation.noGovernorates')}</FormHelperText>
+                    )}
+                    {errors.governorate && <FormHelperText>{errors.governorate}</FormHelperText>}
                   </FormControl>
                 )}
 
-                {/* City */}
-                {cities.length > 0 && (
-                  <FormControl fullWidth margin="normal">
+                {selectedGovernorate && (
+                  <FormControl
+                    fullWidth margin="normal"
+                    error={!!errors.city}
+                    disabled={citiesLoading}
+                  >
                     <InputLabel>{t('auth.city')}</InputLabel>
                     <Select
                       value={selectedCity}
-                      onChange={(e) => setSelectedCity(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedCity(e.target.value);
+                        setErrors(prev => ({ ...prev, city: '', region_id: '' }));
+                      }}
                       label={t('auth.city')}
                     >
                       {cities.map(c => (
                         <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
                       ))}
                     </Select>
+                    {citiesLoading && (
+                      <FormHelperText>{t('createReport.locationLoadingPlaces')}</FormHelperText>
+                    )}
+                    {!citiesLoading && cities.length === 0 && (
+                      <FormHelperText>{t('createReport.validation.noCities')}</FormHelperText>
+                    )}
+                    {errors.city && <FormHelperText>{errors.city}</FormHelperText>}
                   </FormControl>
                 )}
 
-                {/* Region */}
-                {regions.length > 0 && (
-                  <FormControl fullWidth margin="normal" error={!!errors.region_id}>
+                {selectedCity && (
+                  <FormControl
+                    fullWidth margin="normal"
+                    error={!!errors.region_id}
+                    disabled={regionsLoading}
+                  >
                     <InputLabel>{t('auth.region')}</InputLabel>
                     <Select
                       name="region_id"
@@ -297,6 +349,12 @@ export default function Register() {
                         <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
                       ))}
                     </Select>
+                    {regionsLoading && (
+                      <FormHelperText>{t('createReport.locationLoadingPlaces')}</FormHelperText>
+                    )}
+                    {!regionsLoading && regions.length === 0 && (
+                      <FormHelperText>{t('createReport.validation.noRegions')}</FormHelperText>
+                    )}
                     {errors.region_id && (
                       <FormHelperText>{errors.region_id}</FormHelperText>
                     )}

@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
+import LocationMapPicker from '../../components/shared/LocationMapPicker';
 
 const SEVERITY_VALUES = ['low', 'moderate', 'high', 'critical'];
 
@@ -187,16 +188,6 @@ export default function CreateReport() {
           err.region_id = t('createReport.validation.region');
         } else if (!form.region_id && !locationLoading) {
           err.region_id = t('createReport.validation.region');
-        }
-      }
-      if (step === 3) {
-        if (form.latitude?.trim()) {
-          const n = Number(form.latitude);
-          if (!Number.isFinite(n)) err.latitude = t('createReport.validation.latitudeInvalid');
-        }
-        if (form.longitude?.trim()) {
-          const n = Number(form.longitude);
-          if (!Number.isFinite(n)) err.longitude = t('createReport.validation.longitudeInvalid');
         }
       }
       return err;
@@ -467,28 +458,15 @@ export default function CreateReport() {
               <Typography variant="body2" color="text.secondary">
                 {t('createReport.coordsHintShort')}
               </Typography>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  fullWidth
-                  label={t('createReport.latitude')}
-                  name="latitude"
-                  value={form.latitude}
-                  onChange={handleChange}
-                  placeholder={t('createReport.latPlaceholder')}
-                  error={!!errors.latitude}
-                  helperText={errors.latitude}
-                />
-                <TextField
-                  fullWidth
-                  label={t('createReport.longitude')}
-                  name="longitude"
-                  value={form.longitude}
-                  onChange={handleChange}
-                  placeholder={t('createReport.lngPlaceholder')}
-                  error={!!errors.longitude}
-                  helperText={errors.longitude}
-                />
-              </Stack>
+              <LocationMapPicker
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onChange={({ latitude, longitude }) => {
+                  setForm((f) => ({ ...f, latitude, longitude }));
+                  setErrors((e) => ({ ...e, latitude: '', longitude: '' }));
+                }}
+                height={300}
+              />
               <Card variant="outlined" sx={{ bgcolor: 'background.default', borderStyle: 'dashed' }}>
                 <CardContent>
                   <Typography variant="caption" color="text.secondary" fontWeight={700}>

@@ -93,7 +93,8 @@
       "nameRequired": "Name is required",
       "phoneRequired": "Phone is required",
       "passwordMin": "Min 8 characters",
-      "passwordsMismatch": "Passwords do not match"
+      "passwordsMismatch": "Passwords do not match",
+      "countryRequired": "Choose your country"
     }
   },
   "landing": {
@@ -256,7 +257,11 @@
     "locationHintShort": "Pick country, then governorate, then city if it appears, then village or area — the report needs that last area selected.",
     "locationLoadingPlaces": "Loading cities and areas…",
     "sendAlmostDone": "Almost done",
-    "coordsHintShort": "Pin coordinates only if you already know them — otherwise you can skip.",
+    "coordsHintShort": "Tap the map to mark the exact spot — optional, you can skip.",
+    "mapPickHint": "Tap the map to drop a pin, or drag it to adjust.",
+    "mapUseMyLocation": "Use my location",
+    "mapClearPin": "Clear pin",
+    "mapPickSelected": "Pin at {{lat}}, {{lng}}",
     "recap": "Quick recap",
     "sending": "Sending…",
     "submitAlt": "Submit report",
@@ -299,6 +304,7 @@
       "describeLength": "A bit more detail helps (at least 20 characters)",
       "region": "Choose your village or area",
       "pickGovernorate": "Choose a governorate.",
+      "noGovernorates": "No governorates are listed for this country yet.",
       "pickCity": "Choose the nearest city to continue.",
       "noCities": "No cities are listed for this governorate yet. Try another governorate or ask an admin to update locations.",
       "noRegions": "No villages or areas are listed for this city yet. Try another city.",
