@@ -10,6 +10,7 @@ import {
 import { Visibility, VisibilityOff, Pets } from '@mui/icons-material';
 import { toast } from 'react-toastify';
 import api from '../../api/axios';
+import { resolveFcmTokenForApi } from '../../firebase/fcmToken';
 
 export default function Register() {
   const { t } = useTranslation();
@@ -139,6 +140,7 @@ export default function Register() {
     if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
     setLoading(true);
     try {
+      const fcmToken = await resolveFcmTokenForApi();
       await api.post('/auth/register', {
         name:                  form.name,
         email:                 form.email,
@@ -146,6 +148,7 @@ export default function Register() {
         password:              form.password,
         password_confirmation: form.password_confirmation,
         region_id:             form.region_id,
+        fcm_token:             fcmToken,
       });
       toast.success(t('toasts.registeredVerify'));
       setStep(2);

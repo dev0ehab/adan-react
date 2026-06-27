@@ -13,7 +13,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <ThemeDirectionBridge>
     <AuthProvider>
       <App />
-      <ToastContainer position="top-center" autoClose={3200} hideProgressBar />
+      <ToastContainer
+        position="top-center"
+        autoClose={3200}
+        hideProgressBar
+        style={{ zIndex: 9999 }}
+      />
     </AuthProvider>
   </ThemeDirectionBridge>,
 );

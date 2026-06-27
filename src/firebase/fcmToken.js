@@ -110,6 +110,14 @@ export async function subscribeForegroundMessages(handler) {
 }
 
 /**
+ * Token for auth API payloads (`fcm_token`). Returns empty string when unavailable.
+ */
+export async function resolveFcmTokenForApi() {
+  const token = await getWebFcmToken().catch(() => null);
+  return token ?? '';
+}
+
+/**
  * Web FCM device token. Needs VITE_FIREBASE_* (full web config), VITE_FIREBASE_VAPID_KEY,
  * user granting notification permission, and a working `/firebase-messaging-sw.js`.
  */
@@ -145,7 +153,10 @@ export async function getWebFcmToken() {
     const messaging = await getMessagingInstance();
     if (!messaging) return null;
 
-    const permission = await Notification.requestPermission();
+    let permission = Notification.permission;
+    if (permission === 'default') {
+      permission = await Notification.requestPermission();
+    }
     if (permission !== 'granted') {
       fcmDebug(`Notification permission is "${permission}" — user must allow notifications for a token.`);
       return null;
@@ -154,6 +165,7 @@ export async function getWebFcmToken() {
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
       scope: '/',
     });
+    await navigator.serviceWorker.ready;
 
     const token = await getToken(messaging, {
       vapidKey: String(vapidKey).trim(),

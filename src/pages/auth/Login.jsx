@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import useAuth from '../../hooks/useAuth';
 import api from '../../api/axios';
-import { getWebFcmToken } from '../../firebase/fcmToken';
+import { resolveFcmTokenForApi } from '../../firebase/fcmToken';
 
 export default function Login() {
   const { t } = useTranslation();
@@ -43,10 +43,10 @@ export default function Login() {
     }
     setLoading(true);
     try {
-      const fcmToken = await getWebFcmToken().catch(() => null);
+      const fcmToken = await resolveFcmTokenForApi();
       const res = await api.post('/auth/login', {
         ...form,
-        fcm_token: fcmToken ?? '',
+        fcm_token: fcmToken,
       });
       login(res.data.token, res.data.user);
       toast.success(t('toasts.welcomeBack'));
